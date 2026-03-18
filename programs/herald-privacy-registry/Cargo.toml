@@ -1,7 +1,9 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "herald-privacy-registry"
-version = "0.1.0"
-description = "Created with Anchor"
+version = "1.0.0"
+description = "Herald Privacy Registry – encrypted identity, protocol registry, and ZK delivery receipts"
 edition = "2021"
 
 [lib]
@@ -19,10 +21,14 @@ anchor-debug = []
 custom-heap = []
 custom-panic = []
 
-
 [dependencies]
-anchor-lang = "0.32.1"
-
+anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
+light-sdk = { version = "0.23.0", features = ["anchor"] }
+solana-program = "~1.18"
+blake3 = "=1.8.2"
+sha2 = "0.10"
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(target_os, values("solana"))',
+] }
