@@ -4,8 +4,7 @@ use light_sdk::{derive_light_cpi_signer, CpiSigner};
 /// Herald backend authority pubkey.
 /// This key is controlled by the Herald backend (stored in AWS KMS).
 /// ⚠️ Replace with the actual authority pubkey before mainnet deployment.
-pub const HERALD_AUTHORITY: Pubkey =
-    solana_program::pubkey!("HERALDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxAAAA");
+pub const HERALD_AUTHORITY: Pubkey = Pubkey::new_from_array([0; 32]);
 
 /// Maximum allowed length for the encrypted email field in bytes.
 pub const MAX_ENCRYPTED_EMAIL_LEN: usize = 200;

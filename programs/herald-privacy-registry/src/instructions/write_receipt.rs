@@ -2,8 +2,12 @@ use anchor_lang::prelude::*;
 
 use light_sdk::{
     account::LightAccount,
-    cpi::v1::{CpiAccounts, InvokeLightSystemProgram, LightSystemProgramCpi},
+    cpi::{
+        v1::{CpiAccounts, LightSystemProgramCpi},
+        InvokeLightSystemProgram,
+    },
     instruction::ValidityProof,
+    LightCpiInstruction,
 };
 
 use crate::constants::HERALD_AUTHORITY;
