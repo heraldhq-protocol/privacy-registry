@@ -106,6 +106,24 @@ describe("herald-privacy-registry", () => {
   // registered user since it always has funds on localnet.
   const primaryUser = provider.wallet;
 
+  // ── idempotent cleanup ─────────────────────────────────────
+  // When using --skip-local-validator the validator state persists
+  // between runs, so the primary user's identity PDA may already
+  // exist. Delete it first to keep the suite idempotent.
+  before(async () => {
+    const [pda] = findIdentityPda(primaryUser.publicKey, program.programId);
+    const info = await provider.connection.getAccountInfo(pda);
+    if (info) {
+      await program.methods
+        .deleteIdentity()
+        .accounts({
+          owner: primaryUser.publicKey,
+          identityAccount: pda,
+        } as any)
+        .rpc();
+    }
+  });
+
   // ═══════════════════════════════════════════════════════════
   // 1. IDENTITY – register_identity
   // ═══════════════════════════════════════════════════════════
@@ -440,6 +458,8 @@ describe("herald-privacy-registry", () => {
       const protocol = Keypair.generate();
       const [pda] = findProtocolPda(protocol.publicKey, program.programId);
 
+      // The protocol PDA doesn't exist on-chain, so Anchor fails at
+      // account deserialization before the authority constraint fires.
       await expectError(
         program.methods
           .deactivateProtocol()
@@ -449,7 +469,7 @@ describe("herald-privacy-registry", () => {
           } as any)
           .signers([fakeAuth])
           .rpc(),
-        "Unauthorized"
+        "AccountNotInitialized"
       );
     });
 
@@ -476,7 +496,7 @@ describe("herald-privacy-registry", () => {
           } as any)
           .signers([fakeAuth])
           .rpc(),
-        "Unauthorized"
+        "AccountNotInitialized"
       );
     });
 
@@ -503,7 +523,7 @@ describe("herald-privacy-registry", () => {
           } as any)
           .signers([fakeAuth])
           .rpc(),
-        "Unauthorized"
+        "AccountNotInitialized"
       );
     });
 
@@ -534,7 +554,7 @@ describe("herald-privacy-registry", () => {
           } as any)
           .signers([fakeAuth])
           .rpc(),
-        "Unauthorized"
+        "AccountNotInitialized"
       );
     });
 
@@ -561,7 +581,7 @@ describe("herald-privacy-registry", () => {
           } as any)
           .signers([fakeAuth])
           .rpc(),
-        "Unauthorized"
+        "AccountNotInitialized"
       );
     });
 
@@ -603,6 +623,8 @@ describe("herald-privacy-registry", () => {
         },
       };
 
+      // The protocol PDA doesn't exist on-chain, so Anchor fails at
+      // account deserialization before the authority constraint fires.
       await expectError(
         program.methods
           .writeReceipt(
@@ -618,7 +640,7 @@ describe("herald-privacy-registry", () => {
           } as any)
           .signers([fakeAuth])
           .rpc(),
-        "Unauthorized"
+        "AccountNotInitialized"
       );
     });
 

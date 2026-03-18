@@ -10,6 +10,8 @@ use light_sdk::{
     LightCpiInstruction,
 };
 
+use crate::state::AnchorCompressedProof;
+
 use crate::constants::HERALD_AUTHORITY;
 use crate::errors::HeraldError;
 use crate::events::{NotificationDelivered, ProtocolSendRecorded};
@@ -53,7 +55,7 @@ pub struct WriteReceipt<'info> {
 /// * `category`          – 0-3 notification category
 pub fn handler<'info>(
     ctx: Context<'_, '_, '_, 'info, WriteReceipt<'info>>,
-    proof: ValidityProof,
+    proof: AnchorCompressedProof,
     output_tree_index: u8,
     recipient_hash: [u8; 32],
     notification_id: [u8; 16],
@@ -119,7 +121,8 @@ pub fn handler<'info>(
 
     // ── 8. CPI into Light System Program ──
     // InvokeLightSystemProgram trait must be in scope for .new_cpi() and .invoke().
-    LightSystemProgramCpi::new_cpi(crate::constants::LIGHT_CPI_SIGNER, proof)
+    let validity_proof: ValidityProof = proof.into();
+    LightSystemProgramCpi::new_cpi(crate::constants::LIGHT_CPI_SIGNER, validity_proof)
         .with_light_account(receipt)
         .map_err(|_| error!(HeraldError::LightAccountError))?
         .invoke(light_cpi_accounts)

@@ -7,7 +7,7 @@ pub mod instructions;
 pub mod state;
 
 use instructions::*;
-use light_sdk::instruction::ValidityProof;
+use state::AnchorCompressedProof;
 
 declare_id!("2pxjAf8tLCakKVDuN4vY51B5TeaEQk4koPuk9NZvWqdf");
 
@@ -124,7 +124,7 @@ pub mod herald_privacy_registry {
     /// Write a ZK-compressed delivery receipt via Light Protocol CPI.
     pub fn write_receipt<'info>(
         ctx: Context<'_, '_, '_, 'info, WriteReceipt<'info>>,
-        proof: ValidityProof,
+        proof: AnchorCompressedProof,
         output_tree_index: u8,
         recipient_hash: [u8; 32],
         notification_id: [u8; 16],
