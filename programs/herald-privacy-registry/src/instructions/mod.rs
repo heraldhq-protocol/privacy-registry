@@ -1,5 +1,6 @@
 pub mod deactivate_protocol;
 pub mod delete_identity;
+pub mod pay_subscription;
 pub mod reactivate_protocol;
 pub mod register_identity;
 pub mod register_protocol;
@@ -7,10 +8,13 @@ pub mod renew_subscription;
 pub mod reset_protocol_sends;
 pub mod suspend_protocol;
 pub mod update_identity;
+pub mod update_tier;
+pub mod withdraw_treasury;
 pub mod write_receipt;
 
 pub use deactivate_protocol::*;
 pub use delete_identity::*;
+pub use pay_subscription::*;
 pub use reactivate_protocol::*;
 pub use register_identity::*;
 pub use register_protocol::*;
@@ -18,4 +22,6 @@ pub use renew_subscription::*;
 pub use reset_protocol_sends::*;
 pub use suspend_protocol::*;
 pub use update_identity::*;
+pub use update_tier::*;
+pub use withdraw_treasury::*;
 pub use write_receipt::*;

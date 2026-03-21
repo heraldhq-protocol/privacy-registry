@@ -92,21 +92,17 @@ pub struct ProtocolSuspended {
 //  SUBSCRIPTION / BILLING EVENTS
 // ═══════════════════════════════════════════════════════════
 
-/// Emitted when a protocol's subscription is renewed (by Herald authority).
+/// Emitted by BOTH `renew_subscription` (Helio path) AND `pay_subscription` (USDC path).
 #[event]
 pub struct SubscriptionRenewed {
     pub protocol: Pubkey,
     pub tier: u8,
     pub new_expiry: i64,
     pub periods_paid: u32,
-    pub timestamp: i64,
-}
-
-/// Emitted when a subscription renewal is marked as overdue by Herald.
-#[event]
-pub struct SubscriptionExpiredEvent {
-    pub protocol: Pubkey,
-    pub expired_at: i64,
+    /// Zero when called via authority (Helio); actual USDC amount for on-chain payments.
+    pub usdc_paid: u64,
+    /// "helio_webhook" | "on_chain_usdc" | "on_chain_usdt" (padded to 20 bytes).
+    pub payment_source: [u8; 20],
     pub timestamp: i64,
 }
 
@@ -116,6 +112,18 @@ pub struct PeriodReset {
     pub protocol: Pubkey,
     pub sends_last_period: u64,
     pub tier: u8,
+    pub timestamp: i64,
+}
+
+/// Emitted when a protocol pays on-chain (Phase 2 only).
+#[event]
+pub struct PaymentReceived {
+    pub protocol: Pubkey,
+    pub amount_usdc: u64,
+    pub token_mint: Pubkey,
+    pub tier: u8,
+    pub months: u8,
+    pub new_expiry: i64,
     pub timestamp: i64,
 }
 

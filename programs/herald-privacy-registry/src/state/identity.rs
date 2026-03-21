@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 /// User identity account storing encrypted email and notification preferences.
 ///
 /// PDA Seeds: `["identity", owner.key().as_ref()]`
-/// Space: 8 (discriminator) + fields ≈ 342 bytes; allocated 1024 for future expansion.
+/// Space: 8 (discriminator) + fields ≈ 342 bytes; allocated via InitSpace.
 #[account]
 #[derive(InitSpace)]
 pub struct IdentityAccount {
@@ -41,4 +41,21 @@ pub struct IdentityAccount {
 
     /// PDA bump seed.
     pub bump: u8, // 1
+}
+
+impl IdentityAccount {
+    /// Returns true if this identity should receive a notification for the given category.
+    /// Category 3 (system) always bypasses opt-in.
+    pub fn should_receive(&self, category: u8) -> bool {
+        if !self.opt_in_all {
+            return false;
+        }
+        match category {
+            0 => self.opt_in_defi,
+            1 => self.opt_in_governance,
+            2 => self.opt_in_marketing,
+            3 => true, // system notifications bypass opt-in
+            _ => false,
+        }
+    }
 }

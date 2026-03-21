@@ -102,19 +102,36 @@ pub mod herald_privacy_registry {
         instructions::suspend_protocol::handler(ctx)
     }
 
+    /// Update a protocol's tier level. Only callable by the Herald authority.
+    pub fn update_protocol_tier(ctx: Context<UpdateProtocolTier>, new_tier: u8) -> Result<()> {
+        instructions::update_tier::handler(ctx, new_tier)
+    }
+
     // ═══════════════════════════════════════════════════════
     //  SUBSCRIPTION / BILLING INSTRUCTIONS
     // ═══════════════════════════════════════════════════════
 
     /// Renew (or initially activate) a protocol's monthly subscription.
-    /// Called by the Herald backend after confirming off-chain payment.
+    /// Called by the Herald backend after confirming off-chain payment (Helio).
     pub fn renew_subscription(ctx: Context<RenewSubscription>) -> Result<()> {
         instructions::renew_subscription::handler(ctx)
+    }
+
+    /// Pay for subscription on-chain with USDC or USDT (Phase 2).
+    /// Called directly by the protocol admin wallet.
+    pub fn pay_subscription(ctx: Context<PaySubscription>, months: u8) -> Result<()> {
+        instructions::pay_subscription::handler(ctx, months)
     }
 
     /// Reset a protocol's sends counter at the end of a billing period.
     pub fn reset_protocol_sends(ctx: Context<ResetProtocolSends>) -> Result<()> {
         instructions::reset_protocol_sends::handler(ctx)
+    }
+
+    /// Withdraw accumulated USDC/USDT from vault to Herald treasury.
+    /// Only callable by the Herald authority.
+    pub fn withdraw_treasury(ctx: Context<WithdrawTreasury>, amount: u64) -> Result<()> {
+        instructions::withdraw_treasury::handler(ctx, amount)
     }
 
     // ═══════════════════════════════════════════════════════

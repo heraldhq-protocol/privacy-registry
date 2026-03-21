@@ -68,14 +68,15 @@ graph TD
 
 ```
 programs/herald-privacy-registry/src/
-├── lib.rs                     # Entrypoint (10 instructions in 3 groups)
+├── lib.rs                     # Entrypoint (13 instructions in 3 groups)
 ├── constants.rs               # HERALD_AUTHORITY, TIER_SEND_LIMITS, SUBSCRIPTION_PERIOD_SECS
-├── errors.rs                  # 24 typed error variants
+├── errors.rs                  # 26 typed error variants
 ├── events.rs                  # 14 typed events
 ├── state/
 │   ├── identity.rs            # IdentityAccount PDA
 │   ├── protocol.rs            # ProtocolRegistryAccount PDA (with billing fields)
-│   └── receipt.rs             # DeliveryReceipt (Light compressed)
+│   ├── receipt.rs             # DeliveryReceipt (Light compressed)
+│   └── vault.rs               # SubscriptionVaultAccount PDA
 └── instructions/
     ├── register_identity.rs
     ├── update_identity.rs
@@ -84,7 +85,10 @@ programs/herald-privacy-registry/src/
     ├── deactivate_protocol.rs
     ├── reactivate_protocol.rs
     ├── suspend_protocol.rs     # Hard-suspend (ToS/fraud)
-    ├── renew_subscription.rs   # Monthly billing
+    ├── update_tier.rs          # Modify protocol tier
+    ├── renew_subscription.rs   # Monthly billing (Helio fallback)
+    ├── pay_subscription.rs     # Phase 2: On-chain USDC/USDT payment
+    ├── withdraw_treasury.rs    # Move vault funds to treasury
     ├── reset_protocol_sends.rs # Period-end counter reset
     └── write_receipt.rs        # ZK-compressed delivery proof
 ```
@@ -122,7 +126,20 @@ programs/herald-privacy-registry/src/
 | `sends_this_period` | `u64` | Sends used in current period |
 | `is_active` | `bool` | Soft-active flag |
 | `is_suspended` | `bool` | Hard-suspension flag |
+| `lifetime_usdc_paid` | `u64` | Accumulated USDC paid (6-decimals) |
+| `last_payment_mint` | `Pubkey` | Last used payment token |
 | `registered_at` | `i64` | Registration timestamp |
+| `bump` | `u8` | PDA bump |
+
+### SubscriptionVaultAccount (PDA: `["vault"]`, 65 bytes)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `authority` | `Pubkey` | Herald treasury multisig |
+| `total_usdc_collected` | `u64` | Total USDC volume |
+| `total_usdt_collected` | `u64` | Total USDT volume |
+| `last_withdrawal_at` | `i64` | Last withdrawal timestamp |
+| `withdrawal_count` | `u32` | Number of withdrawals |
 | `bump` | `u8` | PDA bump |
 
 ### DeliveryReceipt (Light Protocol Compressed Leaf)
@@ -156,12 +173,15 @@ programs/herald-privacy-registry/src/
 | `deactivate_protocol` | Soft-deactivate |
 | `reactivate_protocol` | Re-enable (non-suspended only) |
 | `suspend_protocol` | Hard-suspend (ToS/fraud); blocks renewal |
+| `update_protocol_tier` | Change protocol tier (0-3) |
 
 ### Subscription Billing (Herald Authority)
 
 | Instruction | Description |
 |-------------|-------------|
-| `renew_subscription` | Activate/extend subscription by one period (30 days); also reactivates lapsed protocols |
+| `pay_subscription` | Protocol pays on-chain with USDC/USDT to renew/activate (Phase 2) |
+| `renew_subscription` | Reactivate/extend by 1 period (off-chain Helio payment fallback) |
+| `withdraw_treasury` | Withdraw accumulated vault USDC/USDT to Herald treasury |
 | `reset_protocol_sends` | Zero the period sends counter; emits audit event |
 
 ### Receipts (Herald Authority)
@@ -241,18 +261,20 @@ stateDiagram-v2
 | 6010 | `ProtocolSuspended` | Hard-suspended |
 | 6011 | `SubscriptionExpired` | Past `subscription_expires_at` |
 | 6012 | `SubscriptionNotActive` | Never activated |
-| 6013 | `SendsLimitExceeded` | Tier quota exhausted |
-| 6014 | `SendsOverflow` | u64 counter overflow |
-| 6015 | `InvalidSubscriptionExpiry` | Expiry not in future |
-| 6016 | `ProtocolAlreadyActive` | Already active |
-| 6017 | `InvalidCategory` | Category not 0–3 |
-| 6018 | `InvalidRecipientHash` | Hash not 32 bytes |
-| 6019 | `InvalidNotificationId` | ID not 16 bytes |
-| 6020 | `LightCpiAccountsError` | Light CPI account init failed |
-| 6021 | `LightAccountError` | Light account attach failed |
-| 6022 | `LightCpiInvocationError` | Light CPI invoke failed |
-| 6023 | `Overflow` | General arithmetic overflow |
-| 6024 | `ClockUnavailable` | Solana Clock sysvar error |
+| 6013 | `SubscriptionNotActive` | Never activated |
+| 6014 | `SendsLimitExceeded` | Tier quota exhausted |
+| 6015 | `SendsOverflow` | u64 counter overflow |
+| 6016 | `InvalidSubscriptionExpiry` | Expiry not in future |
+| 6017 | `DevTierNoPayment` | Dev tier is free |
+| 6018 | `UnsupportedPaymentToken` | Must be USDC or USDT |
+| 6019 | `InvalidCategory` | Category not 0–3 |
+| 6020 | `InvalidRecipientHash` | Hash not 32 bytes |
+| 6021 | `InvalidNotificationId` | ID not 16 bytes |
+| 6022 | `LightCpiAccountsError` | Light CPI account init failed |
+| 6023 | `LightAccountError` | Light account attach failed |
+| 6024 | `LightCpiInvocationError` | Light CPI invoke failed |
+| 6025 | `Overflow` | General arithmetic overflow |
+| 6026 | `ClockUnavailable` | Solana Clock sysvar error |
 
 ---
 
@@ -268,8 +290,9 @@ stateDiagram-v2
 | `ProtocolDeactivated` | protocol, timestamp | `deactivate_protocol` |
 | `ProtocolReactivated` | protocol, timestamp | `reactivate_protocol` |
 | `ProtocolSuspended` | protocol, timestamp | `suspend_protocol` |
-| `ProtocolTierUpdated` | protocol, old_tier, new_tier | *(future)* |
-| `SubscriptionRenewed` | protocol, tier, new_expiry, periods_paid | `renew_subscription` |
+| `ProtocolTierUpdated` | protocol, old_tier, new_tier | `update_protocol_tier` |
+| `PaymentReceived` | protocol, amount_usdc, token_mint, tier | `pay_subscription` |
+| `SubscriptionRenewed` | protocol, tier, new_expiry, usdc_paid | `pay_subscription`, `renew_subscription` |
 | `PeriodReset` | protocol, sends_last_period, tier | `reset_protocol_sends` |
 | `NotificationDelivered` | protocol, recipient_hash, id, category, sends | `write_receipt` |
 | `ProtocolSendRecorded` | protocol, sends_this_period, sends_limit | `write_receipt` |
@@ -319,7 +342,10 @@ See [docs/SECURITY.md](./docs/SECURITY.md) for the full audit report.
 | `deactivate_protocol` | `HERALD_AUTHORITY` | + must be active |
 | `reactivate_protocol` | `HERALD_AUTHORITY` | + must be inactive & not suspended |
 | `suspend_protocol` | `HERALD_AUTHORITY` | |
+| `update_protocol_tier` | `HERALD_AUTHORITY` | |
+| `pay_subscription` | Protocol admin | Validates mint, payer is `protocol.owner` |
 | `renew_subscription` | `HERALD_AUTHORITY` | + must not be suspended |
+| `withdraw_treasury` | `HERALD_AUTHORITY` | Vault PDA acts as signer for transfer |
 | `reset_protocol_sends` | `HERALD_AUTHORITY` | |
 | `write_receipt` | `HERALD_AUTHORITY` | + active + not suspended + subscription current + within limit |
 
