@@ -1,9 +1,11 @@
 use anchor_lang::prelude::*;
 
-/// On-chain registration and subscription record for a DeFi protocol.
+use crate::constants::{SUBSCRIPTION_PERIOD_SECS, TIER_PRICES_USDC, TIER_SEND_LIMITS};
+use crate::errors::HeraldError;
+
+/// On-chain registration and billing record for a DeFi protocol.
 ///
 /// PDA Seeds: `["protocol", protocol_pubkey.as_ref()]`
-/// Allocated space: 256 bytes (8 discriminator + fields + padding)
 #[account]
 #[derive(InitSpace)]
 pub struct ProtocolRegistryAccount {
@@ -40,6 +42,13 @@ pub struct ProtocolRegistryAccount {
     /// Whether the protocol has been explicitly suspended by Herald (not just lapsed).
     pub is_suspended: bool, // 1
 
+    // ── Billing Tracking ────────────────────────────────────
+    /// Accumulated USDC paid lifetime (6-decimal base units, for analytics).
+    pub lifetime_usdc_paid: u64, // 8
+
+    /// Last payment token mint (USDC or USDT pubkey). Default if never paid.
+    pub last_payment_mint: Pubkey, // 32
+
     // ── Timestamps ──────────────────────────────────────────
     /// Unix timestamp of initial registration.
     pub registered_at: i64, // 8
@@ -50,21 +59,42 @@ pub struct ProtocolRegistryAccount {
 
 impl ProtocolRegistryAccount {
     /// Returns `true` if the subscription is currently valid (not expired).
+    #[inline]
     pub fn subscription_is_current(&self, now: i64) -> bool {
         self.subscription_expires_at > now
     }
 
     /// Returns the maximum sends allowed for this tier.
-    /// Uses the TIER_SEND_LIMITS constant array.
+    #[inline]
     pub fn sends_limit(&self) -> u64 {
-        crate::constants::TIER_SEND_LIMITS[self.tier as usize]
+        TIER_SEND_LIMITS[self.tier as usize]
+    }
+
+    /// USDC price for one billing period at this tier (6-decimal base units).
+    #[inline]
+    pub fn period_price_usdc(&self) -> u64 {
+        TIER_PRICES_USDC[self.tier as usize]
     }
 
     /// Returns `true` if this protocol can send a notification right now.
+    /// Mirrors the write_receipt guard order exactly.
     pub fn can_send(&self, now: i64) -> bool {
         self.is_active
             && !self.is_suspended
             && self.subscription_is_current(now)
             && self.sends_this_period < self.sends_limit()
+    }
+
+    /// Compute new subscription expiry after one period payment.
+    /// If subscription is still current, extends from current expiry (prorated).
+    /// Otherwise starts fresh from `now`.
+    pub fn compute_new_expiry(&self, now: i64) -> Result<i64> {
+        let base = if self.subscription_is_current(now) {
+            self.subscription_expires_at
+        } else {
+            now
+        };
+        base.checked_add(SUBSCRIPTION_PERIOD_SECS)
+            .ok_or_else(|| error!(HeraldError::Overflow))
     }
 }

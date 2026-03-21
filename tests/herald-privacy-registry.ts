@@ -681,8 +681,11 @@ describe("herald-privacy-registry", () => {
       "deactivateProtocol",
       "reactivateProtocol",
       "suspendProtocol",
+      "updateProtocolTier",
       "renewSubscription",
+      "paySubscription",
       "resetProtocolSends",
+      "withdrawTreasury",
       "writeReceipt",
     ];
 
@@ -696,6 +699,7 @@ describe("herald-privacy-registry", () => {
     const EXPECTED_ACCOUNTS = [
       "identityAccount",
       "protocolRegistryAccount",
+      "subscriptionVaultAccount",
     ];
 
     for (const name of EXPECTED_ACCOUNTS) {
@@ -707,8 +711,8 @@ describe("herald-privacy-registry", () => {
       });
     }
 
-    it("📋 IDL has 10 instructions total", () => {
-      expect(program.idl.instructions.length).to.equal(10);
+    it("📋 IDL has 13 instructions total", () => {
+      expect(program.idl.instructions.length).to.equal(13);
     });
   });
 });

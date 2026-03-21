@@ -16,16 +16,18 @@ cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
-idl-build = ["anchor-lang/idl-build"]
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 anchor-debug = []
 custom-heap = []
 custom-panic = []
 
 [dependencies]
-anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
-light-sdk = { version = "0.23.0", features = ["anchor"] }
-blake3 = "=1.8.2"
-sha2 = "0.10"
+anchor-lang = { workspace = true }
+anchor-spl = { workspace = true }
+light-sdk = { workspace = true }
+spl-token = { workspace = true }
+blake3 = { workspace = true }
+sha2 = { workspace = true }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [

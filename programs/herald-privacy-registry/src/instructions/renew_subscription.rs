@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::constants::{HERALD_AUTHORITY, SUBSCRIPTION_PERIOD_SECS};
+use crate::constants::HERALD_AUTHORITY;
 use crate::errors::HeraldError;
 use crate::events::SubscriptionRenewed;
 use crate::state::ProtocolRegistryAccount;
@@ -21,7 +21,7 @@ pub struct RenewSubscription<'info> {
 
 /// Renew (or initially activate) a protocol's monthly subscription.
 ///
-/// Called exclusively by the Herald backend after off-chain payment confirmation.
+/// Called exclusively by the Herald backend after off-chain payment confirmation (Helio).
 ///
 /// Behaviour:
 /// - If the current subscription is still active, the new expiry is calculated
@@ -39,34 +39,30 @@ pub fn handler(ctx: Context<RenewSubscription>) -> Result<()> {
     // Refuse to renew a suspended protocol through this instruction.
     require!(!protocol.is_suspended, HeraldError::ProtocolSuspended);
 
-    // Determine new expiry:
-    // - Extend from current expiry if subscription is still live (prorated extension).
-    // - Otherwise start fresh from now.
-    let base = if protocol.subscription_is_current(now) {
-        protocol.subscription_expires_at
-    } else {
-        now
-    };
-
-    let new_expiry = base
-        .checked_add(SUBSCRIPTION_PERIOD_SECS)
-        .ok_or(error!(HeraldError::Overflow))?;
+    let new_expiry = protocol.compute_new_expiry(now)?;
 
     protocol.subscription_expires_at = new_expiry;
     protocol.last_renewed_at = now;
     protocol.periods_paid = protocol
         .periods_paid
         .checked_add(1)
-        .ok_or(error!(HeraldError::Overflow))?;
+        .ok_or_else(|| error!(HeraldError::Overflow))?;
 
     // Renewing also reactivates the protocol if it was deactivated due to lapse.
     protocol.is_active = true;
+
+    // payment_source tag: "helio_webhook" padded to 20 bytes
+    let mut payment_source = [0u8; 20];
+    let tag = b"helio_webhook";
+    payment_source[..tag.len()].copy_from_slice(tag);
 
     emit!(SubscriptionRenewed {
         protocol: protocol.owner,
         tier: protocol.tier,
         new_expiry,
         periods_paid: protocol.periods_paid,
+        usdc_paid: 0, // off-chain payment; amount not known here
+        payment_source,
         timestamp: now,
     });
 
