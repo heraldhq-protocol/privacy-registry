@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 
 use crate::constants::{
-    HERALD_AUTHORITY, SUBSCRIPTION_PERIOD_SECS, USDC_MINT, USDT_MINT, VAULT_SEED,
+   SUBSCRIPTION_PERIOD_SECS, USDC_MINT, USDT_MINT, VAULT_SEED,
 };
 use crate::errors::HeraldError;
 use crate::events::{PaymentReceived, SubscriptionRenewed};

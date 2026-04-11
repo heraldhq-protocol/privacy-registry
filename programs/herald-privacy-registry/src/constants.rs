@@ -18,7 +18,7 @@ pub const USDT_MINT: Pubkey =
 /// Herald treasury multisig (Squads 2-of-3).
 /// All subscription payments accumulate here.
 /// ⚠️ Replace with the actual Squads multisig pubkey before mainnet deployment.
-pub const HERALD_TREASURY: Pubkey = Pubkey::from_str_const("11111111111111111111111111111111");
+pub const HERALD_TREASURY: Pubkey = Pubkey::from_str_const("AyMjTKQcZh2WF2DG63kwR8yNvSLv8EfYzZgA1geZnXVL");
 
 /// Light Protocol CPI signer, derived at compile-time from the program ID.
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -26,6 +26,14 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 
 /// Maximum allowed length for the encrypted email field in bytes.
 pub const MAX_ENCRYPTED_EMAIL_LEN: usize = 200;
+
+/// Maximum allowed length for the encrypted Telegram chat_id field in bytes.
+/// 32 (ephemeral pubkey) + ~16 (NaCl overhead) + max 10 char chat_id ≈ 80 bytes.
+pub const MAX_ENCRYPTED_TELEGRAM_ID_LEN: usize = 80;
+
+/// Maximum allowed length for the encrypted E.164 phone number field in bytes.
+/// 32 (ephemeral pubkey) + ~16 (NaCl overhead) + max 15 char E.164 ≈ 65 bytes.
+pub const MAX_ENCRYPTED_PHONE_LEN: usize = 65;
 
 // ── Subscription billing constants ──────────────────────────────────────────
 

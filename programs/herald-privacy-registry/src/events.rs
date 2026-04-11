@@ -150,3 +150,42 @@ pub struct ProtocolSendRecorded {
     pub sends_limit: u64,
     pub timestamp: i64,
 }
+
+// ═══════════════════════════════════════════════════════════
+//  CHANNEL EVENTS
+// ═══════════════════════════════════════════════════════════
+
+/// Emitted when a Telegram channel is registered or updated for an identity.
+#[event]
+pub struct TelegramRegistered {
+    pub wallet: Pubkey,
+    pub telegram_id_hash: [u8; 32],
+    pub timestamp: i64,
+}
+
+/// Emitted when an SMS channel is registered or updated for an identity.
+#[event]
+pub struct SmsRegistered {
+    pub wallet: Pubkey,
+    pub phone_hash: [u8; 32],
+    pub timestamp: i64,
+}
+
+/// Emitted when channel enable/disable flags are toggled.
+#[event]
+pub struct ChannelSettingsUpdated {
+    pub wallet: Pubkey,
+    pub channel_email: bool,
+    pub channel_telegram: bool,
+    pub channel_sms: bool,
+    pub timestamp: i64,
+}
+
+/// Emitted when a channel's encrypted data is permanently removed (GDPR erasure).
+#[event]
+pub struct ChannelRemoved {
+    pub wallet: Pubkey,
+    /// 0 = Telegram, 1 = SMS
+    pub channel: u8,
+    pub timestamp: i64,
+}

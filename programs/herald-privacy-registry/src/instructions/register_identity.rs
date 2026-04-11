@@ -13,10 +13,11 @@ pub struct RegisterIdentity<'info> {
     pub owner: Signer<'info>,
 
     /// Identity PDA – created and owned by this program.
+    /// Uses IdentityAccount::SPACE to accommodate all channel fields.
     #[account(
         init,
         payer = owner,
-        space = 8 + IdentityAccount::INIT_SPACE,
+        space = IdentityAccount::SPACE,
         seeds = [b"identity", owner.key().as_ref()],
         bump,
     )]
@@ -60,6 +61,14 @@ pub fn handler(
     identity.opt_in_marketing = opt_in_marketing;
     identity.digest_mode = digest_mode;
     identity.bump = ctx.bumps.identity_account;
+
+    // ── Channel defaults for new registrations ──
+    // Email is the primary channel — enabled by default.
+    // Telegram and SMS start disabled (no data registered yet).
+    identity.channel_email = true;
+    identity.channel_telegram = false;
+    identity.channel_sms = false;
+    // Channel data fields are zero-initialized by Anchor (empty vecs, zeroed arrays).
 
     emit!(IdentityRegistered {
         wallet: ctx.accounts.owner.key(),

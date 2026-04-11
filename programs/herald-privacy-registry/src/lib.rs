@@ -7,6 +7,7 @@ pub mod instructions;
 pub mod state;
 
 use instructions::*;
+use instructions::remove_channel::ChannelType;
 use state::AnchorCompressedProof;
 
 declare_id!("2pxjAf8tLCakKVDuN4vY51B5TeaEQk4koPuk9NZvWqdf");
@@ -72,6 +73,70 @@ pub mod herald_privacy_registry {
     /// Delete (close) a user identity account. Rent is refunded to the owner.
     pub fn delete_identity(ctx: Context<DeleteIdentity>) -> Result<()> {
         instructions::delete_identity::handler(ctx)
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  CHANNEL MANAGEMENT INSTRUCTIONS
+    // ═══════════════════════════════════════════════════════
+
+    /// Register or update the Telegram channel for an existing identity.
+    pub fn register_telegram(
+        ctx: Context<RegisterTelegram>,
+        encrypted_telegram_id: Vec<u8>,
+        telegram_id_hash: [u8; 32],
+        nonce_telegram: [u8; 24],
+    ) -> Result<()> {
+        instructions::register_telegram::handler(
+            ctx,
+            encrypted_telegram_id,
+            telegram_id_hash,
+            nonce_telegram,
+        )
+    }
+
+    /// Register or update the SMS channel for an existing identity.
+    pub fn register_sms(
+        ctx: Context<RegisterSms>,
+        encrypted_phone: Vec<u8>,
+        phone_hash: [u8; 32],
+        nonce_sms: [u8; 24],
+    ) -> Result<()> {
+        instructions::register_sms::handler(
+            ctx,
+            encrypted_phone,
+            phone_hash,
+            nonce_sms,
+        )
+    }
+
+    /// Toggle individual channels on/off without modifying encrypted data.
+    pub fn update_channel_settings(
+        ctx: Context<UpdateChannelSettings>,
+        channel_email: Option<bool>,
+        channel_telegram: Option<bool>,
+        channel_sms: Option<bool>,
+    ) -> Result<()> {
+        instructions::update_channels::handler(
+            ctx,
+            channel_email,
+            channel_telegram,
+            channel_sms,
+        )
+    }
+
+    /// Permanently remove a channel's encrypted data (GDPR per-channel erasure).
+    pub fn remove_channel(
+        ctx: Context<RemoveChannel>,
+        channel: ChannelType,
+    ) -> Result<()> {
+        instructions::remove_channel::handler(ctx, channel)
+    }
+
+    /// Lazy migration: set channel_email = true for pre-existing identities.
+    pub fn migrate_identity_channels(
+        ctx: Context<MigrateIdentityChannels>,
+    ) -> Result<()> {
+        instructions::migrate_channels::handler(ctx)
     }
 
     // ═══════════════════════════════════════════════════════

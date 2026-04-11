@@ -89,4 +89,31 @@ pub enum HeraldError {
 
     #[msg("Clock sysvar unavailable")]
     ClockUnavailable, // 6026
+
+    // ── Telegram errors (6027–6029) ──────────────────────────────
+    #[msg("Encrypted Telegram ID must not be empty")]
+    TelegramIdEmpty, // 6027
+
+    #[msg("Encrypted Telegram ID exceeds maximum length of 80 bytes")]
+    TelegramIdTooLong, // 6028
+
+    #[msg("Telegram channel not registered; add Telegram before enabling it")]
+    TelegramNotRegistered, // 6029
+
+    // ── SMS errors (6030–6032) ───────────────────────────────────
+    #[msg("Encrypted phone number must not be empty")]
+    PhoneEmpty, // 6030
+
+    #[msg("Encrypted phone number exceeds maximum length of 65 bytes")]
+    PhoneTooLong, // 6031
+
+    #[msg("SMS channel not registered; add phone before enabling it")]
+    SmsNotRegistered, // 6032
+
+    // ── General channel errors (6033–6034) ──────────────────────
+    #[msg("At least one delivery channel must remain active")]
+    NoActiveChannels, // 6033
+
+    #[msg("Invalid channel type: must be 0 (Telegram) or 1 (SMS)")]
+    InvalidChannelType, // 6034
 }

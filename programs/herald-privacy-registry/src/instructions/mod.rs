@@ -1,26 +1,37 @@
 pub mod deactivate_protocol;
 pub mod delete_identity;
+pub mod migrate_channels;
 pub mod pay_subscription;
 pub mod reactivate_protocol;
 pub mod register_identity;
 pub mod register_protocol;
+pub mod register_sms;
+pub mod register_telegram;
+pub mod remove_channel;
 pub mod renew_subscription;
 pub mod reset_protocol_sends;
 pub mod suspend_protocol;
+pub mod update_channels;
 pub mod update_identity;
 pub mod update_tier;
 pub mod withdraw_treasury;
 pub mod write_receipt;
 
+#[allow(ambiguous_glob_reexports)]
 pub use deactivate_protocol::*;
 pub use delete_identity::*;
+pub use migrate_channels::*;
 pub use pay_subscription::*;
 pub use reactivate_protocol::*;
 pub use register_identity::*;
 pub use register_protocol::*;
+pub use register_sms::*;
+pub use register_telegram::*;
+pub use remove_channel::*;
 pub use renew_subscription::*;
 pub use reset_protocol_sends::*;
 pub use suspend_protocol::*;
+pub use update_channels::*;
 pub use update_identity::*;
 pub use update_tier::*;
 pub use withdraw_treasury::*;
