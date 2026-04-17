@@ -45,16 +45,23 @@ graph LR
 ## 💾 State Management
 
 ### 1. Identity State (PDA)
+
 Stored in standard Solana accounts.
-- **Purpose**: Low-latency lookup of user preferences and encrypted endpoints.
+
+- **Purpose**: Low-latency lookup of user preferences and encrypted endpoints (email, Telegram, SMS).
 - **Ownership**: Owned by the user wallet.
+- **Channels**: Supports multiple delivery channels (email, Telegram, SMS) with per-channel opt-in flags.
 
 ### 2. Protocol State (PDA)
+
 Stored in standard Solana accounts.
+
 - **Purpose**: Identity validation for protocols and billing/usage tracking.
 
 ### 3. Delivery Receipts (Compressed)
+
 Stored in Light Protocol's Merkle tree.
+
 - **Purpose**: Proof of delivery without the high cost of standard account rent.
 
 ## 🔄 Logical Flows
@@ -93,7 +100,7 @@ sequenceDiagram
 ## 🔐 Security Principles
 
 1. **Cryptographic Privacy**: Email addresses are encrypted using NaCl (Box) before reaching the program.
-2. **Authority Constraints**: 
+2. **Authority Constraints**:
    - Identity: `signer == identity_account.owner`
    - Registry: `signer == HERALD_AUTHORITY`
 3. **ZK-Compression**: Ensures delivery receipts are verifiable without exposing full state history to cheap tampering.
@@ -111,7 +118,11 @@ sequenceDiagram
 ### Event System
 
 High-fidelity event emission allows the Herald Backend to sync state efficiently:
+
 - `IdentityRegistered` / `IdentityUpdated` / `IdentityDeleted`
 - `PreferencesUpdated`: Specialized for configuration changes.
+- `TelegramRegistered` / `SmsRegistered`: Channel registration events.
+- `ChannelSettingsUpdated`: Channel enable/disable changes.
+- `ChannelRemoved`: GDPR erasure event for channel data.
 - `ProtocolRegistered` / `ProtocolSendRecorded`
 - `NotificationDelivered`: Records the category for analytics.

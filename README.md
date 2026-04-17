@@ -30,11 +30,11 @@ Herald is a privacy-first notification layer for **Solana DeFi**. Protocols pay 
 
 ### Core Responsibilities
 
-| Domain | What the program does |
-|--------|----------------------|
-| **Identity** | Stores NaCl-encrypted email + SHA-256 hash per wallet, with per-category opt-in preferences |
-| **Protocols** | Registers DeFi protocols, enforces tier-based send limits, tracks subscription expiry |
-| **Receipts** | Appends ZK-compressed delivery proofs to a Light Protocol Merkle tree (no rent cost) |
+| Domain        | What the program does                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| **Identity**  | Stores NaCl-encrypted email + SHA-256 hash per wallet, with per-category opt-in preferences |
+| **Protocols** | Registers DeFi protocols, enforces tier-based send limits, tracks subscription expiry       |
+| **Receipts**  | Appends ZK-compressed delivery proofs to a Light Protocol Merkle tree (no rent cost)        |
 
 ---
 
@@ -68,19 +68,24 @@ graph TD
 
 ```
 programs/herald-privacy-registry/src/
-├── lib.rs                     # Entrypoint (13 instructions in 3 groups)
+├── lib.rs                     # Entrypoint (17 instructions in 4 groups)
 ├── constants.rs               # HERALD_AUTHORITY, TIER_SEND_LIMITS, SUBSCRIPTION_PERIOD_SECS
-├── errors.rs                  # 26 typed error variants
-├── events.rs                  # 14 typed events
+├── errors.rs                  # 35 typed error variants
+├── events.rs                  # 18 typed events
 ├── state/
-│   ├── identity.rs            # IdentityAccount PDA
+│   ├── identity.rs            # IdentityAccount PDA (with channel support)
 │   ├── protocol.rs            # ProtocolRegistryAccount PDA (with billing fields)
-│   ├── receipt.rs             # DeliveryReceipt (Light compressed)
+│   ├── proof.rs               # DeliveryReceipt (Light compressed)
 │   └── vault.rs               # SubscriptionVaultAccount PDA
 └── instructions/
     ├── register_identity.rs
     ├── update_identity.rs
     ├── delete_identity.rs
+    ├── register_telegram.rs    # Register encrypted Telegram chat ID
+    ├── register_sms.rs         # Register encrypted phone number
+    ├── update_channels.rs       # Enable/disable channels, update encrypted data
+    ├── remove_channel.rs        # GDPR erasure for channel data
+    ├── migrate_channels.rs      # Permissionless lazy migration
     ├── register_protocol.rs
     ├── deactivate_protocol.rs
     ├── reactivate_protocol.rs
@@ -99,59 +104,68 @@ programs/herald-privacy-registry/src/
 
 ### IdentityAccount (PDA: `["identity", owner]`, 1024 bytes)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `owner` | `Pubkey` | Wallet owner |
-| `encrypted_email` | `Vec<u8>` | NaCl ciphertext (max 200 bytes) |
-| `email_hash` | `[u8; 32]` | SHA-256 of plaintext email |
-| `nonce` | `[u8; 24]` | NaCl nonce |
-| `registered_at` | `i64` | Registration timestamp |
-| `opt_in_all` | `bool` | Global opt-in |
-| `opt_in_defi` | `bool` | DeFi opt-in |
-| `opt_in_governance` | `bool` | Governance opt-in |
-| `opt_in_marketing` | `bool` | Marketing opt-in |
-| `digest_mode` | `bool` | Daily digest vs real-time |
-| `bump` | `u8` | PDA bump |
+| Field                   | Type       | Description                     |
+| ----------------------- | ---------- | ------------------------------- |
+| `owner`                 | `Pubkey`   | Wallet owner                    |
+| `encrypted_email`       | `Vec<u8>`  | NaCl ciphertext (max 200 bytes) |
+| `email_hash`            | `[u8; 32]` | SHA-256 of plaintext email      |
+| `nonce`                 | `[u8; 24]` | NaCl nonce                      |
+| `registered_at`         | `i64`      | Registration timestamp          |
+| `opt_in_all`            | `bool`     | Global opt-in                   |
+| `opt_in_defi`           | `bool`     | DeFi opt-in                     |
+| `opt_in_governance`     | `bool`     | Governance opt-in               |
+| `opt_in_marketing`      | `bool`     | Marketing opt-in                |
+| `digest_mode`           | `bool`     | Daily digest vs real-time       |
+| `encrypted_telegram_id` | `Vec<u8>`  | NaCl ciphertext (max 80 bytes)  |
+| `telegram_id_hash`      | `[u8; 32]` | SHA-256 of Telegram chat ID     |
+| `telegram_nonce`        | `[u8; 24]` | NaCl nonce for Telegram         |
+| `encrypted_phone`       | `Vec<u8>`  | NaCl ciphertext (max 65 bytes)  |
+| `phone_hash`            | `[u8; 32]` | SHA-256 of phone number         |
+| `phone_nonce`           | `[u8; 24]` | NaCl nonce for phone            |
+| `channel_email`         | `bool`     | Email channel enabled           |
+| `channel_telegram`      | `bool`     | Telegram channel enabled        |
+| `channel_sms`           | `bool`     | SMS channel enabled             |
+| `bump`                  | `u8`       | PDA bump                        |
 
 ### ProtocolRegistryAccount (PDA: `["protocol", protocol_wallet]`, 256 bytes)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `owner` | `Pubkey` | Protocol admin wallet |
-| `name_hash` | `[u8; 32]` | SHA-256 of protocol name |
-| `tier` | `u8` | 0=dev, 1=growth, 2=scale, 3=enterprise |
-| `subscription_expires_at` | `i64` | Subscription expiry timestamp |
-| `last_renewed_at` | `i64` | Last renewal timestamp |
-| `periods_paid` | `u32` | Total billing periods paid |
-| `sends_this_period` | `u64` | Sends used in current period |
-| `is_active` | `bool` | Soft-active flag |
-| `is_suspended` | `bool` | Hard-suspension flag |
-| `lifetime_usdc_paid` | `u64` | Accumulated USDC paid (6-decimals) |
-| `last_payment_mint` | `Pubkey` | Last used payment token |
-| `registered_at` | `i64` | Registration timestamp |
-| `bump` | `u8` | PDA bump |
+| Field                     | Type       | Description                            |
+| ------------------------- | ---------- | -------------------------------------- |
+| `owner`                   | `Pubkey`   | Protocol admin wallet                  |
+| `name_hash`               | `[u8; 32]` | SHA-256 of protocol name               |
+| `tier`                    | `u8`       | 0=dev, 1=growth, 2=scale, 3=enterprise |
+| `subscription_expires_at` | `i64`      | Subscription expiry timestamp          |
+| `last_renewed_at`         | `i64`      | Last renewal timestamp                 |
+| `periods_paid`            | `u32`      | Total billing periods paid             |
+| `sends_this_period`       | `u64`      | Sends used in current period           |
+| `is_active`               | `bool`     | Soft-active flag                       |
+| `is_suspended`            | `bool`     | Hard-suspension flag                   |
+| `lifetime_usdc_paid`      | `u64`      | Accumulated USDC paid (6-decimals)     |
+| `last_payment_mint`       | `Pubkey`   | Last used payment token                |
+| `registered_at`           | `i64`      | Registration timestamp                 |
+| `bump`                    | `u8`       | PDA bump                               |
 
 ### SubscriptionVaultAccount (PDA: `["vault"]`, 65 bytes)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `authority` | `Pubkey` | Herald treasury multisig |
-| `total_usdc_collected` | `u64` | Total USDC volume |
-| `total_usdt_collected` | `u64` | Total USDT volume |
-| `last_withdrawal_at` | `i64` | Last withdrawal timestamp |
-| `withdrawal_count` | `u32` | Number of withdrawals |
-| `bump` | `u8` | PDA bump |
+| Field                  | Type     | Description               |
+| ---------------------- | -------- | ------------------------- |
+| `authority`            | `Pubkey` | Herald treasury multisig  |
+| `total_usdc_collected` | `u64`    | Total USDC volume         |
+| `total_usdt_collected` | `u64`    | Total USDT volume         |
+| `last_withdrawal_at`   | `i64`    | Last withdrawal timestamp |
+| `withdrawal_count`     | `u32`    | Number of withdrawals     |
+| `bump`                 | `u8`     | PDA bump                  |
 
 ### DeliveryReceipt (Light Protocol Compressed Leaf)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `protocol_pubkey` | `Pubkey` | Sending protocol |
-| `recipient_hash` | `[u8; 32]` | SHA-256 of recipient wallet |
-| `notification_id` | `[u8; 16]` | UUID v4 |
-| `timestamp` | `i64` | Delivery time |
-| `delivered` | `bool` | Always `true` |
-| `category` | `u8` | 0=DeFi, 1=Gov, 2=Marketing, 3=Other |
+| Field             | Type       | Description                         |
+| ----------------- | ---------- | ----------------------------------- |
+| `protocol_pubkey` | `Pubkey`   | Sending protocol                    |
+| `recipient_hash`  | `[u8; 32]` | SHA-256 of recipient wallet         |
+| `notification_id` | `[u8; 16]` | UUID v4                             |
+| `timestamp`       | `i64`      | Delivery time                       |
+| `delivered`       | `bool`     | Always `true`                       |
+| `category`        | `u8`       | 0=DeFi, 1=Gov, 2=Marketing, 3=Other |
 
 ---
 
@@ -159,35 +173,45 @@ programs/herald-privacy-registry/src/
 
 ### Identity (User-Signed)
 
-| Instruction | Signer | Description |
-|-------------|--------|-------------|
-| `register_identity` | Owner wallet | Create identity PDA |
-| `update_identity` | Owner wallet | Partial update (Option fields) |
-| `delete_identity` | Owner wallet | Close PDA, refund rent |
+| Instruction         | Signer       | Description                    |
+| ------------------- | ------------ | ------------------------------ |
+| `register_identity` | Owner wallet | Create identity PDA            |
+| `update_identity`   | Owner wallet | Partial update (Option fields) |
+| `delete_identity`   | Owner wallet | Close PDA, refund rent         |
+
+### Channels (User-Signed)
+
+| Instruction         | Signer       | Description                                    |
+| ------------------- | ------------ | ---------------------------------------------- |
+| `register_telegram` | Owner wallet | Register encrypted Telegram chat ID            |
+| `register_sms`      | Owner wallet | Register encrypted phone number                |
+| `update_channels`   | Owner wallet | Enable/disable channels, update encrypted data |
+| `remove_channel`    | Owner wallet | GDPR erasure for channel data (Telegram/SMS)   |
+| `migrate_channels`  | Any wallet   | Permissionless lazy migration                  |
 
 ### Protocol Lifecycle (Herald Authority)
 
-| Instruction | Description |
-|-------------|-------------|
-| `register_protocol` | Create protocol PDA (initially inactive, no subscription) |
-| `deactivate_protocol` | Soft-deactivate |
-| `reactivate_protocol` | Re-enable (non-suspended only) |
-| `suspend_protocol` | Hard-suspend (ToS/fraud); blocks renewal |
-| `update_protocol_tier` | Change protocol tier (0-3) |
+| Instruction            | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `register_protocol`    | Create protocol PDA (initially inactive, no subscription) |
+| `deactivate_protocol`  | Soft-deactivate                                           |
+| `reactivate_protocol`  | Re-enable (non-suspended only)                            |
+| `suspend_protocol`     | Hard-suspend (ToS/fraud); blocks renewal                  |
+| `update_protocol_tier` | Change protocol tier (0-3)                                |
 
 ### Subscription Billing (Herald Authority)
 
-| Instruction | Description |
-|-------------|-------------|
-| `pay_subscription` | Protocol pays on-chain with USDC/USDT to renew/activate (Phase 2) |
-| `renew_subscription` | Reactivate/extend by 1 period (off-chain Helio payment fallback) |
-| `withdraw_treasury` | Withdraw accumulated vault USDC/USDT to Herald treasury |
-| `reset_protocol_sends` | Zero the period sends counter; emits audit event |
+| Instruction            | Description                                                       |
+| ---------------------- | ----------------------------------------------------------------- |
+| `pay_subscription`     | Protocol pays on-chain with USDC/USDT to renew/activate (Phase 2) |
+| `renew_subscription`   | Reactivate/extend by 1 period (off-chain Helio payment fallback)  |
+| `withdraw_treasury`    | Withdraw accumulated vault USDC/USDT to Herald treasury           |
+| `reset_protocol_sends` | Zero the period sends counter; emits audit event                  |
 
 ### Receipts (Herald Authority)
 
-| Instruction | Description |
-|-------------|-------------|
+| Instruction     | Description                                                   |
+| --------------- | ------------------------------------------------------------- |
 | `write_receipt` | CPI into Light Protocol to append a compressed delivery proof |
 
 ---
@@ -196,12 +220,12 @@ programs/herald-privacy-registry/src/
 
 ### Tier Limits
 
-| Tier | Name | Monthly Price | Sends / Month |
-|------|------|---------------|---------------|
-| 0 | Dev | Free | 1,000 |
-| 1 | Growth | $99 | 50,000 |
-| 2 | Scale | $299 | 250,000 |
-| 3 | Enterprise | $999 | 1,000,000 |
+| Tier | Name       | Monthly Price | Sends / Month |
+| ---- | ---------- | ------------- | ------------- |
+| 0    | Dev        | Free          | 1,000         |
+| 1    | Growth     | $99           | 50,000        |
+| 2    | Scale      | $299          | 250,000       |
+| 3    | Enterprise | $999          | 1,000,000     |
 
 ### Billing Flow
 
@@ -246,56 +270,68 @@ stateDiagram-v2
 
 ## 🔴 Error Codes
 
-| Code | Name | Description |
-|------|------|-------------|
-| 6000 | `EmailTooLong` | Email > 200 bytes |
-| 6001 | `EmailEmpty` | Empty email |
-| 6002 | `InvalidEmailHash` | Hash not 32 bytes |
-| 6003 | `InvalidNonce` | Nonce not 24 bytes |
-| 6004 | `EmptyUpdate` | No fields to update |
-| 6005 | `Unauthorized` | Wrong authority |
-| 6006 | `OwnerMismatch` | Wrong identity owner |
-| 6007 | `InvalidTier` | Tier not 0–3 |
-| 6008 | `ProtocolInactive` | `is_active = false` |
-| 6009 | `ProtocolAlreadyDeactivated` | Already inactive |
-| 6010 | `ProtocolSuspended` | Hard-suspended |
-| 6011 | `SubscriptionExpired` | Past `subscription_expires_at` |
-| 6012 | `SubscriptionNotActive` | Never activated |
-| 6013 | `SubscriptionNotActive` | Never activated |
-| 6014 | `SendsLimitExceeded` | Tier quota exhausted |
-| 6015 | `SendsOverflow` | u64 counter overflow |
-| 6016 | `InvalidSubscriptionExpiry` | Expiry not in future |
-| 6017 | `DevTierNoPayment` | Dev tier is free |
-| 6018 | `UnsupportedPaymentToken` | Must be USDC or USDT |
-| 6019 | `InvalidCategory` | Category not 0–3 |
-| 6020 | `InvalidRecipientHash` | Hash not 32 bytes |
-| 6021 | `InvalidNotificationId` | ID not 16 bytes |
-| 6022 | `LightCpiAccountsError` | Light CPI account init failed |
-| 6023 | `LightAccountError` | Light account attach failed |
-| 6024 | `LightCpiInvocationError` | Light CPI invoke failed |
-| 6025 | `Overflow` | General arithmetic overflow |
-| 6026 | `ClockUnavailable` | Solana Clock sysvar error |
+| Code | Name                         | Description                             |
+| ---- | ---------------------------- | --------------------------------------- |
+| 6000 | `EmailTooLong`               | Email > 200 bytes                       |
+| 6001 | `EmailEmpty`                 | Empty email                             |
+| 6002 | `InvalidEmailHash`           | Hash not 32 bytes                       |
+| 6003 | `InvalidNonce`               | Nonce not 24 bytes                      |
+| 6004 | `EmptyUpdate`                | No fields to update                     |
+| 6005 | `Unauthorized`               | Wrong authority                         |
+| 6006 | `OwnerMismatch`              | Wrong identity owner                    |
+| 6007 | `InvalidTier`                | Tier not 0–3                            |
+| 6008 | `ProtocolInactive`           | `is_active = false`                     |
+| 6009 | `ProtocolAlreadyDeactivated` | Already inactive                        |
+| 6010 | `ProtocolSuspended`          | Hard-suspended                          |
+| 6011 | `SubscriptionExpired`        | Past `subscription_expires_at`          |
+| 6012 | `SubscriptionNotActive`      | Never activated                         |
+| 6013 | `SubscriptionNotActive`      | Never activated                         |
+| 6014 | `SendsLimitExceeded`         | Tier quota exhausted                    |
+| 6015 | `SendsOverflow`              | u64 counter overflow                    |
+| 6016 | `InvalidSubscriptionExpiry`  | Expiry not in future                    |
+| 6017 | `DevTierNoPayment`           | Dev tier is free                        |
+| 6018 | `UnsupportedPaymentToken`    | Must be USDC or USDT                    |
+| 6019 | `InvalidCategory`            | Category not 0–3                        |
+| 6020 | `InvalidRecipientHash`       | Hash not 32 bytes                       |
+| 6021 | `InvalidNotificationId`      | ID not 16 bytes                         |
+| 6022 | `LightCpiAccountsError`      | Light CPI account init failed           |
+| 6023 | `LightAccountError`          | Light account attach failed             |
+| 6024 | `LightCpiInvocationError`    | Light CPI invoke failed                 |
+| 6025 | `Overflow`                   | General arithmetic overflow             |
+| 6026 | `ClockUnavailable`           | Solana Clock sysvar error               |
+| 6027 | `TelegramIdEmpty`            | Telegram ID is empty                    |
+| 6028 | `TelegramIdTooLong`          | Telegram ID > 80 bytes                  |
+| 6029 | `TelegramNotRegistered`      | Telegram not registered                 |
+| 6030 | `PhoneEmpty`                 | Phone number is empty                   |
+| 6031 | `PhoneTooLong`               | Phone > 65 bytes                        |
+| 6032 | `SmsNotRegistered`           | SMS not registered                      |
+| 6033 | `NoActiveChannels`           | At least one channel must remain        |
+| 6034 | `InvalidChannelType`         | Channel must be 0 (Telegram) or 1 (SMS) |
 
 ---
 
 ## 📡 Events
 
-| Event | Key Fields | Emitted By |
-|-------|-----------|------------|
-| `IdentityRegistered` | wallet, email_hash, opt_ins, timestamp | `register_identity` |
-| `IdentityUpdated` | wallet, email_changed, prefs_changed | `update_identity` |
-| `PreferencesUpdated` | wallet, all opt_in_* fields | `update_identity` |
-| `IdentityDeleted` | wallet, timestamp | `delete_identity` |
-| `ProtocolRegistered` | protocol, name_hash, tier | `register_protocol` |
-| `ProtocolDeactivated` | protocol, timestamp | `deactivate_protocol` |
-| `ProtocolReactivated` | protocol, timestamp | `reactivate_protocol` |
-| `ProtocolSuspended` | protocol, timestamp | `suspend_protocol` |
-| `ProtocolTierUpdated` | protocol, old_tier, new_tier | `update_protocol_tier` |
-| `PaymentReceived` | protocol, amount_usdc, token_mint, tier | `pay_subscription` |
-| `SubscriptionRenewed` | protocol, tier, new_expiry, usdc_paid | `pay_subscription`, `renew_subscription` |
-| `PeriodReset` | protocol, sends_last_period, tier | `reset_protocol_sends` |
-| `NotificationDelivered` | protocol, recipient_hash, id, category, sends | `write_receipt` |
-| `ProtocolSendRecorded` | protocol, sends_this_period, sends_limit | `write_receipt` |
+| Event                    | Key Fields                                    | Emitted By                               |
+| ------------------------ | --------------------------------------------- | ---------------------------------------- |
+| `IdentityRegistered`     | wallet, email_hash, opt_ins, timestamp        | `register_identity`                      |
+| `IdentityUpdated`        | wallet, email_changed, prefs_changed          | `update_identity`                        |
+| `PreferencesUpdated`     | wallet, all opt*in*\* fields                  | `update_identity`                        |
+| `IdentityDeleted`        | wallet, timestamp                             | `delete_identity`                        |
+| `TelegramRegistered`     | wallet, telegram_id_hash, timestamp           | `register_telegram`                      |
+| `SmsRegistered`          | wallet, phone_hash, timestamp                 | `register_sms`                           |
+| `ChannelSettingsUpdated` | wallet, channel_email/telegram/sms            | `update_channels`                        |
+| `ChannelRemoved`         | wallet, channel (0=Telegram, 1=SMS)           | `remove_channel`                         |
+| `ProtocolRegistered`     | protocol, name_hash, tier                     | `register_protocol`                      |
+| `ProtocolDeactivated`    | protocol, timestamp                           | `deactivate_protocol`                    |
+| `ProtocolReactivated`    | protocol, timestamp                           | `reactivate_protocol`                    |
+| `ProtocolSuspended`      | protocol, timestamp                           | `suspend_protocol`                       |
+| `ProtocolTierUpdated`    | protocol, old_tier, new_tier                  | `update_protocol_tier`                   |
+| `PaymentReceived`        | protocol, amount_usdc, token_mint, tier       | `pay_subscription`                       |
+| `SubscriptionRenewed`    | protocol, tier, new_expiry, usdc_paid         | `pay_subscription`, `renew_subscription` |
+| `PeriodReset`            | protocol, sends_last_period, tier             | `reset_protocol_sends`                   |
+| `NotificationDelivered`  | protocol, recipient_hash, id, category, sends | `write_receipt`                          |
+| `ProtocolSendRecorded`   | protocol, sends_this_period, sends_limit      | `write_receipt`                          |
 
 ---
 
@@ -333,21 +369,21 @@ See [docs/SECURITY.md](./docs/SECURITY.md) for the full audit report.
 
 ### Access Control Summary
 
-| Instruction | Required Signer | Key Checks |
-|-------------|----------------|------------|
-| `register_identity` | Wallet owner | PDA seeded by owner |
-| `update_identity` | Wallet owner | PDA seed + `owner` field match |
-| `delete_identity` | Wallet owner | PDA seed + bump |
-| `register_protocol` | `HERALD_AUTHORITY` | Compile-time constant |
-| `deactivate_protocol` | `HERALD_AUTHORITY` | + must be active |
-| `reactivate_protocol` | `HERALD_AUTHORITY` | + must be inactive & not suspended |
-| `suspend_protocol` | `HERALD_AUTHORITY` | |
-| `update_protocol_tier` | `HERALD_AUTHORITY` | |
-| `pay_subscription` | Protocol admin | Validates mint, payer is `protocol.owner` |
-| `renew_subscription` | `HERALD_AUTHORITY` | + must not be suspended |
-| `withdraw_treasury` | `HERALD_AUTHORITY` | Vault PDA acts as signer for transfer |
-| `reset_protocol_sends` | `HERALD_AUTHORITY` | |
-| `write_receipt` | `HERALD_AUTHORITY` | + active + not suspended + subscription current + within limit |
+| Instruction            | Required Signer    | Key Checks                                                     |
+| ---------------------- | ------------------ | -------------------------------------------------------------- |
+| `register_identity`    | Wallet owner       | PDA seeded by owner                                            |
+| `update_identity`      | Wallet owner       | PDA seed + `owner` field match                                 |
+| `delete_identity`      | Wallet owner       | PDA seed + bump                                                |
+| `register_protocol`    | `HERALD_AUTHORITY` | Compile-time constant                                          |
+| `deactivate_protocol`  | `HERALD_AUTHORITY` | + must be active                                               |
+| `reactivate_protocol`  | `HERALD_AUTHORITY` | + must be inactive & not suspended                             |
+| `suspend_protocol`     | `HERALD_AUTHORITY` |                                                                |
+| `update_protocol_tier` | `HERALD_AUTHORITY` |                                                                |
+| `pay_subscription`     | Protocol admin     | Validates mint, payer is `protocol.owner`                      |
+| `renew_subscription`   | `HERALD_AUTHORITY` | + must not be suspended                                        |
+| `withdraw_treasury`    | `HERALD_AUTHORITY` | Vault PDA acts as signer for transfer                          |
+| `reset_protocol_sends` | `HERALD_AUTHORITY` |                                                                |
+| `write_receipt`        | `HERALD_AUTHORITY` | + active + not suspended + subscription current + within limit |
 
 ---
 
@@ -380,6 +416,7 @@ anchor test   # Runs full suite on localnet
 ```
 
 Full integration tests for ZK receipts require the Light Protocol test validator:
+
 ```bash
 npx @lightprotocol/zk-compression-cli start-test-validator
 ```
@@ -397,6 +434,7 @@ solana program set-upgrade-authority <PROGRAM_ID> --new-upgrade-authority <MULTI
 ```
 
 Post-deployment:
+
 1. Replace `HERALD_AUTHORITY` placeholder with actual KMS pubkey and redeploy
 2. Initialise Light Protocol Merkle trees
 3. Register protocols via `register_protocol`
