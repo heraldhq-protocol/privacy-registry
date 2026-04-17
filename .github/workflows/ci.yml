@@ -9,7 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   PACKAGE_MANAGER: yarn
-  SOLANA_VERSION: 2.1.21
+  SOLANA_VERSION: 3.1.12
   ANCHOR_VERSION: 0.32.1
 
 jobs:
@@ -22,6 +22,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -38,12 +40,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Anchor and Solana
-        uses: metadaoproject/setup-anchor@v3.1
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
         with:
-          anchor-version: ${{ env.ANCHOR_VERSION }}
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
-          node-version: "20"
+          toolchain: stable
+
+      - name: Install Solana CLI
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install.sh)"
+
+      - name: Install Anchor CLI from source
+        run: |
+          cargo install --git https://github.com/solana-foundation/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --locked
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -67,12 +74,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Anchor and Solana
-        uses: metadaoproject/setup-anchor@v3.1
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
         with:
-          anchor-version: ${{ env.ANCHOR_VERSION }}
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
+          toolchain: stable
+
+      - name: Install Solana CLI
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install.sh)"
+
+      - name: Install Anchor CLI from source
+        run: |
+          cargo install --git https://github.com/solana-foundation/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --locked
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
           node-version: "20"
+          cache: yarn
 
       - name: Install dependencies
         run: yarn install
@@ -98,6 +116,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
 
       - name: Install cargo-audit
         run: cargo install cargo-audit
