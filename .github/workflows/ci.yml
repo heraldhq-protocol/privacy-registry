@@ -9,7 +9,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   PACKAGE_MANAGER: yarn
-  SOLANA_VERSION: 1.18.0
+  SOLANA_VERSION: 2.1.21
+  ANCHOR_VERSION: 0.32.1
 
 jobs:
   lint:
@@ -21,9 +22,6 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.89.0
-          components: rustfmt
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -40,14 +38,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+      - name: Set up Anchor and Solana
+        uses: metadaoproject/setup-anchor@v3.1
         with:
-          toolchain: 1.89.0
-
-      - name: Install Solana CLI
-        run: |
-          sh -c "$(curl -sSfL https://release.solana.org/v${{ env.SOLANA_VERSION }}/install.sh)"
+          anchor-version: ${{ env.ANCHOR_VERSION }}
+          solana-cli-version: ${{ env.SOLANA_VERSION }}
+          node-version: "20"
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -55,7 +51,7 @@ jobs:
           workspaces: target
 
       - name: Build release
-        run: cargo build-bpf --release --manifest-path programs/herald-privacy-registry/Cargo.toml
+        run: cargo build-sbf --release --manifest-path programs/herald-privacy-registry/Cargo.toml
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -71,20 +67,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+      - name: Set up Anchor and Solana
+        uses: metadaoproject/setup-anchor@v3.1
         with:
-          toolchain: 1.89.0
-
-      - name: Install Solana CLI
-        run: |
-          sh -c "$(curl -sSfL https://release.solana.org/v${{ env.SOLANA_VERSION }}/install.sh)"
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
+          anchor-version: ${{ env.ANCHOR_VERSION }}
+          solana-cli-version: ${{ env.SOLANA_VERSION }}
           node-version: "20"
-          cache: yarn
 
       - name: Install dependencies
         run: yarn install
@@ -110,8 +98,6 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.89.0
 
       - name: Install cargo-audit
         run: cargo install cargo-audit

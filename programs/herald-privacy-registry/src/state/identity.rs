@@ -110,7 +110,7 @@ impl IdentityAccount {
         + (4 + 65)                  // encrypted_phone
         + 32                        // phone_hash
         + 24                        // nonce_sms
-        + 64;                       // future-proof padding
+        + 64; // future-proof padding
 
     /// Returns true if this identity has at least one delivery channel configured.
     pub fn has_any_channel(&self) -> bool {

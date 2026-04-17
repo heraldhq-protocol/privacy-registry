@@ -6,8 +6,8 @@ pub mod events;
 pub mod instructions;
 pub mod state;
 
-use instructions::*;
 use instructions::remove_channel::ChannelType;
+use instructions::*;
 use state::AnchorCompressedProof;
 
 declare_id!("2pxjAf8tLCakKVDuN4vY51B5TeaEQk4koPuk9NZvWqdf");
@@ -101,12 +101,7 @@ pub mod herald_privacy_registry {
         phone_hash: [u8; 32],
         nonce_sms: [u8; 24],
     ) -> Result<()> {
-        instructions::register_sms::handler(
-            ctx,
-            encrypted_phone,
-            phone_hash,
-            nonce_sms,
-        )
+        instructions::register_sms::handler(ctx, encrypted_phone, phone_hash, nonce_sms)
     }
 
     /// Toggle individual channels on/off without modifying encrypted data.
@@ -116,26 +111,21 @@ pub mod herald_privacy_registry {
         channel_telegram: Option<bool>,
         channel_sms: Option<bool>,
     ) -> Result<()> {
-        instructions::update_channels::handler(
-            ctx,
-            channel_email,
-            channel_telegram,
-            channel_sms,
-        )
+        instructions::update_channels::handler(ctx, channel_email, channel_telegram, channel_sms)
     }
 
     /// Permanently remove a channel's encrypted data (GDPR per-channel erasure).
-    pub fn remove_channel(
-        ctx: Context<RemoveChannel>,
-        channel: ChannelType,
-    ) -> Result<()> {
+    pub fn remove_channel(ctx: Context<RemoveChannel>, channel: ChannelType) -> Result<()> {
         instructions::remove_channel::handler(ctx, channel)
     }
 
     /// Lazy migration: set channel_email = true for pre-existing identities.
-    pub fn migrate_identity_channels(
-        ctx: Context<MigrateIdentityChannels>,
-    ) -> Result<()> {
+    pub fn migrate_identity_channels(ctx: Context<MigrateIdentityChannels>) -> Result<()> {
+        instructions::migrate_channels::handler(ctx)
+    }
+
+    /// Lazy migration: set channel_email = true for pre-existing identities.
+    pub fn migrate_identity_channels(ctx: Context<MigrateIdentityChannels>) -> Result<()> {
         instructions::migrate_channels::handler(ctx)
     }
 

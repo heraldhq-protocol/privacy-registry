@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 env:
-  SOLANA_VERSION: 1.18.0
+  SOLANA_VERSION: 2.1.21
   ANCHOR_VERSION: 0.32.1
 
 jobs:
@@ -24,20 +24,12 @@ jobs:
         id: get_tag
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+      - name: Set up Anchor and Solana
+        uses: metadaoproject/setup-anchor@v3.1
         with:
-          toolchain: 1.89.0
-
-      - name: Install Solana CLI
-        run: |
-          sh -c "$(curl -sSfL https://release.solana.org/v${{ env.SOLANA_VERSION }}/install.sh)"
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
+          anchor-version: ${{ env.ANCHOR_VERSION }}
+          solana-cli-version: ${{ env.SOLANA_VERSION }}
           node-version: "20"
-          cache: yarn
 
       - name: Install dependencies
         run: yarn install
@@ -50,8 +42,8 @@ jobs:
       - name: Build release
         run: anchor build
 
-      - name: Build BPF
-        run: cargo build-bpf --release --manifest-path programs/herald-privacy-registry/Cargo.toml
+      - name: Build SBF
+        run: cargo build-sbf --release --manifest-path programs/herald-privacy-registry/Cargo.toml
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
