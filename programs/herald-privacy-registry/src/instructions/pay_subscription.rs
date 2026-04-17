@@ -4,9 +4,7 @@ use anchor_spl::{
     token::{self, Mint, Token, TokenAccount, Transfer},
 };
 
-use crate::constants::{
-   SUBSCRIPTION_PERIOD_SECS, USDC_MINT, USDT_MINT, VAULT_SEED,
-};
+use crate::constants::{SUBSCRIPTION_PERIOD_SECS, USDC_MINT, USDT_MINT, VAULT_SEED};
 use crate::errors::HeraldError;
 use crate::events::{PaymentReceived, SubscriptionRenewed};
 use crate::state::{ProtocolRegistryAccount, SubscriptionVaultAccount};
@@ -49,10 +47,11 @@ pub struct PaySubscription<'info> {
     pub vault_token_account: Account<'info, TokenAccount>,
 
     /// Herald treasury vault PDA.
+    /// TODO(#prod): Replace placeholder vault with real on-chain vault address before mainnet.
     #[account(
         mut,
         seeds = [VAULT_SEED],
-        bump   = vault_account.bump,
+        bump = vault_account.bump,
     )]
     pub vault_account: Account<'info, SubscriptionVaultAccount>,
 

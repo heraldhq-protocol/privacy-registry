@@ -21,7 +21,7 @@ pub struct WithdrawTreasury<'info> {
     #[account(
         mut,
         seeds = [VAULT_SEED],
-        bump   = vault_account.bump,
+        bump = vault_account.bump,
     )]
     pub vault_account: Account<'info, SubscriptionVaultAccount>,
 

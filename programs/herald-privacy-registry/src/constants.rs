@@ -18,7 +18,10 @@ pub const USDT_MINT: Pubkey =
 /// Herald treasury multisig (Squads 2-of-3).
 /// All subscription payments accumulate here.
 /// ⚠️ Replace with the actual Squads multisig pubkey before mainnet deployment.
-pub const HERALD_TREASURY: Pubkey = Pubkey::from_str_const("AyMjTKQcZh2WF2DG63kwR8yNvSLv8EfYzZgA1geZnXVL");
+/// TODO(#prod): Replace with real Squads multisig PDA. Current value is a placeholder
+/// that matches HERALD_AUTHORITY for testing — this defeats the multisig separation.
+pub const HERALD_TREASURY: Pubkey =
+    Pubkey::from_str_const("AyMjTKQcZh2WF2DG63kwR8yNvSLv8EfYzZgA1geZnXVL");
 
 /// Light Protocol CPI signer, derived at compile-time from the program ID.
 pub const LIGHT_CPI_SIGNER: CpiSigner =

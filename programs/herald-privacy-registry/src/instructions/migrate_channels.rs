@@ -8,10 +8,11 @@ use crate::state::IdentityAccount;
 /// (zero-initialized) even though they have encrypted_email data.
 /// This instruction sets channel_email = true for those accounts.
 ///
-/// Permissionless — anyone can call, because setting channel_email = true
-/// when encrypted_email is present is always correct behavior.
-/// No security risk: it only enables the email channel that was already
-/// the sole delivery channel before multi-channel support.
+/// TODO(#security): Require identity owner as signer to prevent frontrunning.
+/// Currently permissionless because enabling email channel when encrypted_email
+/// is present is always correct behavior, but this allows front-running user
+/// preference selection. Add `pub owner: Signer<'info>` and verify PDA seeds
+/// when ready to prevent mempool frontrunning.
 #[derive(Accounts)]
 pub struct MigrateIdentityChannels<'info> {
     #[account(mut)]

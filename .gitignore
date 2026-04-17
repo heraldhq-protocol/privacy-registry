@@ -1,8 +1,40 @@
+# ─── Solana / Anchor ───────────────────────────────────────────────────────────
 .anchor
+target/
+test-ledger/
+*.rs.bk
+
+# ─── Node.js ───────────────────────────────────────────────────────────────────
+node_modules/
+.yarn/
+.pnp.*
+.yarnrc
+*.lock
+package-lock.json
+
+# ─── IDE / Editor ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
-target
-**/*.rs.bk
-node_modules
-test-ledger
-.yarn
-.surfpool
+
+# ─── Environment & Secrets ──────────────────────────────────────────────────────
+.env
+.env.*
+.env.local
+!.env.example
+*.pem
+*.key
+id.json
+*.log
+
+# ─── Build Artifacts ───────────────────────────────────────────────────────────
+*.so
+*.wasm
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+.surfpool/
+coverage/
+*.profraw

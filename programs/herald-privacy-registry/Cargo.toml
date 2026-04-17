@@ -1,5 +1,3 @@
-cargo-features = ["edition2024"]
-
 [package]
 name = "herald-privacy-registry"
 version = "1.0.0"

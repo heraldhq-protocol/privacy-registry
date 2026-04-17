@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  CARGO_TERM_COLOR: always
+  PACKAGE_MANAGER: yarn
+  SOLANA_VERSION: 1.18.0
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: rust-lang/actions/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.89.0
+          components: rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: target
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+  build:
+    name: Build Program
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: rust-lang/actions/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.89.0
+
+      - name: Install Solana CLI
+        uses: metaplex-foundation/setup-solana@v1
+        with:
+          version: ${{ env.SOLANA_VERSION }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: target
+
+      - name: Build release
+        run: cargo build-bpf --release --manifest-path programs/herald-privacy-registry/Cargo.toml
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: solana-program-so
+          path: target/deploy/herald_privacy_registry.so
+          retention-days: 7
+
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: rust-lang/actions/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.89.0
+
+      - name: Install Solana CLI
+        uses: metaplex-foundation/setup-solana@v1
+        with:
+          version: ${{ env.SOLANA_VERSION }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: target
+
+      - name: Build IDL
+        run: anchor build
+
+      - name: Run tests
+        run: anchor test --skip-local-validator
+        timeout-minutes: 15
+
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: rust-lang/actions/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.89.0
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run cargo audit
+        run: cargo audit
+        continue-on-error: true
