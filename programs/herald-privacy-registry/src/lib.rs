@@ -124,9 +124,55 @@ pub mod herald_privacy_registry {
         instructions::migrate_channels::handler(ctx)
     }
 
-    /// Lazy migration: set channel_email = true for pre-existing identities.
-    pub fn migrate_identity_channels(ctx: Context<MigrateIdentityChannels>) -> Result<()> {
-        instructions::migrate_channels::handler(ctx)
+    // ═══════════════════════════════════════════════════════
+    //  NOTIFICATION KEY INSTRUCTIONS
+    // ═══════════════════════════════════════════════════════
+
+    /// Register a sealed X25519 notification key on an existing identity.
+    /// The sealed blob is only decryptable by the Herald Nitro Enclave.
+    pub fn register_notification_key(
+        ctx: Context<RegisterNotificationKey>,
+        sealed_x25519_pubkey: [u8; 48],
+        sender_x25519_pubkey: [u8; 32],
+        nonce: [u8; 24],
+        version: u8,
+    ) -> Result<()> {
+        instructions::register_notification_key::handler(
+            ctx,
+            sealed_x25519_pubkey,
+            sender_x25519_pubkey,
+            nonce,
+            version,
+        )
+    }
+
+    /// Rotate an existing notification key. Increments rotation counter.
+    pub fn rotate_notification_key(
+        ctx: Context<RotateNotificationKey>,
+        new_sealed_x25519_pubkey: [u8; 48],
+        new_sender_x25519_pubkey: [u8; 32],
+        new_nonce: [u8; 24],
+        version: u8,
+    ) -> Result<()> {
+        instructions::rotate_notification_key::handler(
+            ctx,
+            new_sealed_x25519_pubkey,
+            new_sender_x25519_pubkey,
+            new_nonce,
+            version,
+        )
+    }
+
+    /// Revoke (zero out) a notification key. Identity data remains intact.
+    pub fn revoke_notification_key(ctx: Context<RevokeNotificationKey>) -> Result<()> {
+        instructions::revoke_notification_key::handler(ctx)
+    }
+
+    /// Migrate existing account to new size for notification key fields.
+    pub fn migrate_notification_key_space(
+        ctx: Context<MigrateNotificationKeySpace>,
+    ) -> Result<()> {
+        instructions::migrate_notification_key_space::handler(ctx)
     }
 
     // ═══════════════════════════════════════════════════════

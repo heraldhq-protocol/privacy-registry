@@ -116,4 +116,26 @@ pub enum HeraldError {
 
     #[msg("Invalid channel type: must be 0 (Telegram) or 1 (SMS)")]
     InvalidChannelType, // 6034
+
+    // ── Notification Key Errors (6035–6041) ──────────────────────
+    #[msg("Sealed pubkey cannot be all zeros — invalid key material")]
+    ZeroSealedPubkey, // 6035
+
+    #[msg("Notification nonce cannot be all zeros — replay attack risk")]
+    ZeroNotificationNonce, // 6036
+
+    #[msg("Unsupported notification key version")]
+    UnsupportedNotificationKeyVersion, // 6037
+
+    #[msg("Max notification key rotations reached — revoke and re-register")]
+    MaxNotificationKeyRotationsExceeded, // 6038
+
+    #[msg("Notification nonce must differ from current nonce on rotation")]
+    NotificationNonceReuse, // 6039
+
+    #[msg("No notification key registered — cannot rotate or revoke")]
+    NotificationKeyNotRegistered, // 6040
+
+    #[msg("Identity account must be registered before adding a notification key")]
+    IdentityNotRegistered, // 6041
 }

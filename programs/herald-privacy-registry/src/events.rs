@@ -189,3 +189,31 @@ pub struct ChannelRemoved {
     pub channel: u8,
     pub timestamp: i64,
 }
+
+// ═══════════════════════════════════════════════════════════
+//  NOTIFICATION KEY EVENTS
+// ═══════════════════════════════════════════════════════════
+
+/// Emitted when a user registers their sealed X25519 notification key.
+#[event]
+pub struct NotificationKeyRegistered {
+    pub wallet: Pubkey,
+    pub version: u8,
+    pub registered_at: i64,
+}
+
+/// Emitted when a user rotates their sealed notification key.
+#[event]
+pub struct NotificationKeyRotated {
+    pub wallet: Pubkey,
+    pub version: u8,
+    pub rotation_count: u32,
+    pub rotated_at: i64,
+}
+
+/// Emitted when a user revokes (zeroes out) their notification key.
+#[event]
+pub struct NotificationKeyRevoked {
+    pub wallet: Pubkey,
+    pub revoked_at: i64,
+}

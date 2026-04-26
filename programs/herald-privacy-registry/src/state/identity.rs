@@ -90,10 +90,36 @@ pub struct IdentityAccount {
 
     /// NaCl nonce for phone encryption.
     pub nonce_sms: [u8; 24], // 24
+
+    // ── Notification Key (Sealed PDA + Enclave-Only Access) ────
+    /// NaCl box ciphertext of user's X25519 pubkey.
+    /// Sealed with Herald Enclave's wrapping pubkey. Only the enclave can unwrap.
+    /// 48 bytes = 32 (plaintext X25519 pub) + 16 (Poly1305 MAC).
+    /// All zeros = not registered.
+    pub sealed_x25519_pubkey: [u8; 48], // 48
+
+    /// User's X25519 public key in plaintext.
+    /// Needed by the enclave for NaCl box.open (as the "sender" pubkey).
+    /// Safe to store unencrypted — it reveals nothing about notification content.
+    pub sender_x25519_pubkey: [u8; 32], // 32
+
+    /// NaCl box nonce used during sealing. Stored so the enclave can unwrap.
+    pub notification_nonce: [u8; 24], // 24
+
+    /// Schema version for the notification key format.
+    /// Allows the enclave to handle format migrations gracefully.
+    pub notification_key_version: u8, // 1
+
+    /// Unix timestamp of last notification key registration or rotation.
+    pub notification_key_updated_at: i64, // 8
+
+    /// Number of times this notification key has been rotated.
+    /// Capped at MAX_NOTIFICATION_KEY_ROTATIONS to prevent abuse.
+    pub notification_key_rotation_count: u32, // 4
 }
 
 impl IdentityAccount {
-    /// Total space with all channel extensions.
+    /// Total space with all channel extensions + notification key fields.
     /// Used for PDA allocation in register_identity.
     pub const SPACE: usize = 8      // discriminator
         + 32                        // owner
@@ -110,7 +136,20 @@ impl IdentityAccount {
         + (4 + 65)                  // encrypted_phone
         + 32                        // phone_hash
         + 24                        // nonce_sms
-        + 64; // future-proof padding
+        // ── Notification Key ──────────────────
+        + 48                        // sealed_x25519_pubkey
+        + 32                        // sender_x25519_pubkey
+        + 24                        // notification_nonce
+        + 1                         // notification_key_version
+        + 8                         // notification_key_updated_at
+        + 4                         // notification_key_rotation_count
+        + 16; // future-proof padding
+
+    /// Returns true if a notification encryption key is registered.
+    /// Checks that the sealed pubkey is not all zeros.
+    pub fn has_notification_key(&self) -> bool {
+        self.sealed_x25519_pubkey != [0u8; 48]
+    }
 
     /// Returns true if this identity has at least one delivery channel configured.
     pub fn has_any_channel(&self) -> bool {

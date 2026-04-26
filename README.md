@@ -68,7 +68,7 @@ graph TD
 
 ```
 programs/herald-privacy-registry/src/
-├── lib.rs                     # Entrypoint (17 instructions in 4 groups)
+├── lib.rs                     # Entrypoint (22 instructions in 5 groups)
 ├── constants.rs               # HERALD_AUTHORITY, TIER_SEND_LIMITS, SUBSCRIPTION_PERIOD_SECS
 ├── errors.rs                  # 35 typed error variants
 ├── events.rs                  # 18 typed events
@@ -86,6 +86,10 @@ programs/herald-privacy-registry/src/
     ├── update_channels.rs       # Enable/disable channels, update encrypted data
     ├── remove_channel.rs        # GDPR erasure for channel data
     ├── migrate_channels.rs      # Permissionless lazy migration
+    ├── register_notification_key.rs  # Register sealed X25519 key for E2E encryption
+    ├── rotate_notification_key.rs    # Rotate key with fresh nonce
+    ├── revoke_notification_key.rs    # Revoke key (zeros all key fields)
+    ├── migrate_notification_key_space.rs  # Realloc PDA for key fields
     ├── register_protocol.rs
     ├── deactivate_protocol.rs
     ├── reactivate_protocol.rs
@@ -125,6 +129,12 @@ programs/herald-privacy-registry/src/
 | `channel_email`         | `bool`     | Email channel enabled           |
 | `channel_telegram`      | `bool`     | Telegram channel enabled        |
 | `channel_sms`           | `bool`     | SMS channel enabled             |
+| `sealed_x25519_pubkey`  | `[u8; 48]` | Sealed E2E encryption key       |
+| `sender_x25519_pubkey`  | `[u8; 32]` | Sender X25519 public key        |
+| `notification_nonce`    | `[u8; 24]` | NaCl box nonce for sealed key   |
+| `notification_key_version` | `u8`    | Key schema version              |
+| `notification_key_updated_at` | `i64` | Last key update timestamp      |
+| `notification_key_rotation_count` | `u32` | Key rotation count          |
 | `bump`                  | `u8`       | PDA bump                        |
 
 ### ProtocolRegistryAccount (PDA: `["protocol", protocol_wallet]`, 256 bytes)
@@ -188,6 +198,15 @@ programs/herald-privacy-registry/src/
 | `update_channels`   | Owner wallet | Enable/disable channels, update encrypted data |
 | `remove_channel`    | Owner wallet | GDPR erasure for channel data (Telegram/SMS)   |
 | `migrate_channels`  | Any wallet   | Permissionless lazy migration                  |
+
+### Notification Keys (User-Signed)
+
+| Instruction                      | Signer       | Description                                     |
+| -------------------------------- | ------------ | ----------------------------------------------- |
+| `register_notification_key`      | Owner wallet | Register sealed X25519 key for E2E encryption   |
+| `rotate_notification_key`        | Owner wallet | Rotate key with fresh nonce (prevents reuse)    |
+| `revoke_notification_key`        | Owner wallet | Zero all notification key fields                |
+| `migrate_notification_key_space` | Owner wallet | Realloc PDA to accommodate new key fields       |
 
 ### Protocol Lifecycle (Herald Authority)
 
@@ -436,9 +455,11 @@ solana program set-upgrade-authority <PROGRAM_ID> --new-upgrade-authority <MULTI
 Post-deployment:
 
 1. Replace `HERALD_AUTHORITY` placeholder with actual KMS pubkey and redeploy
-2. Initialise Light Protocol Merkle trees
-3. Register protocols via `register_protocol`
-4. Activate via `renew_subscription` after first payment
+2. Replace `HERALD_TREASURY` with actual Squads multisig PDA
+3. Update `HERALD_ENCLAVE_WRAPPING_PUBKEY` in `herald-sdk-ts/src/constants.ts` after enclave keygen
+4. Initialise Light Protocol Merkle trees
+5. Register protocols via `register_protocol`
+6. Activate via `renew_subscription` after first payment
 
 ---
 

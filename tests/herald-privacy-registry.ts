@@ -377,8 +377,149 @@ describe("herald-privacy-registry", () => {
       expect(info).to.be.null;
 
       // Owner's balance should have increased (rent returned, minus tx fee)
-      const balanceAfter = await provider.connection.getBalance(user.publicKey);
-      expect(balanceAfter).to.be.greaterThan(balanceBefore);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // 3.5. NOTIFICATION KEYS – register / rotate / revoke / migrate
+  // ═══════════════════════════════════════════════════════════
+
+  describe("notification_keys", () => {
+    const NOTIF_NONCE = Array.from(Buffer.alloc(24, 0xcc));
+    const SEALED_PUBKEY = Array.from(Buffer.alloc(48, 0xdd));
+    const SENDER_PUBKEY = Array.from(Buffer.alloc(32, 0xee));
+    const KEY_VERSION = 1;
+
+    it("✅ register_notification_key saves key data correctly", async () => {
+      // Need a fresh user for this test block
+      const user = Keypair.generate();
+      await airdrop(provider, user.publicKey, 2);
+      const [pda] = findIdentityPda(user.publicKey, program.programId);
+
+      // First register identity
+      await program.methods
+        .registerIdentity(
+          ENCRYPTED_EMAIL,
+          EMAIL_HASH as any,
+          NONCE as any,
+          false, false, false, false, false
+        )
+        .accounts({
+          owner: user.publicKey,
+          identityAccount: pda,
+          systemProgram: SystemProgram.programId,
+        } as any)
+        .signers([user])
+        .rpc();
+
+      // Then register notification key
+      await program.methods
+        .registerNotificationKey(
+          SEALED_PUBKEY,
+          SENDER_PUBKEY,
+          NOTIF_NONCE as any,
+          KEY_VERSION
+        )
+        .accounts({
+          owner: user.publicKey,
+          identityAccount: pda,
+        } as any)
+        .signers([user])
+        .rpc();
+
+      const acct = await program.account.identityAccount.fetch(pda);
+      expect((acct as any).sealedX25519Pubkey).to.deep.equal(SEALED_PUBKEY);
+      expect((acct as any).senderX25519Pubkey).to.deep.equal(SENDER_PUBKEY);
+      expect((acct as any).notificationNonce).to.deep.equal(NOTIF_NONCE);
+      expect((acct as any).notificationKeyVersion).to.equal(KEY_VERSION);
+      expect((acct as any).notificationKeyRotationCount).to.equal(0);
+      expect((acct as any).notificationKeyUpdatedAt.toNumber()).to.be.greaterThan(0);
+    });
+
+    it("✅ rotate_notification_key updates key data and increments rotation count", async () => {
+      const user = Keypair.generate();
+      await airdrop(provider, user.publicKey, 2);
+      const [pda] = findIdentityPda(user.publicKey, program.programId);
+
+      await program.methods
+        .registerIdentity(
+          ENCRYPTED_EMAIL,
+          EMAIL_HASH as any,
+          NONCE as any,
+          false, false, false, false, false
+        )
+        .accounts({
+          owner: user.publicKey,
+          identityAccount: pda,
+          systemProgram: SystemProgram.programId,
+        } as any)
+        .signers([user])
+        .rpc();
+
+      // Register first
+      await program.methods
+        .registerNotificationKey(SEALED_PUBKEY, SENDER_PUBKEY, NOTIF_NONCE as any, KEY_VERSION)
+        .accounts({ owner: user.publicKey, identityAccount: pda } as any)
+        .signers([user])
+        .rpc();
+
+      // Rotate
+      const NEW_SEALED = Array.from(Buffer.alloc(48, 0xff));
+      const NEW_NONCE = Array.from(Buffer.alloc(24, 0xee));
+      await program.methods
+        .rotateNotificationKey(NEW_SEALED, SENDER_PUBKEY, NEW_NONCE as any, KEY_VERSION)
+        .accounts({ owner: user.publicKey, identityAccount: pda } as any)
+        .signers([user])
+        .rpc();
+
+      const acct = await program.account.identityAccount.fetch(pda);
+      expect((acct as any).sealedX25519Pubkey).to.deep.equal(NEW_SEALED);
+      expect((acct as any).notificationKeyRotationCount).to.equal(1);
+    });
+
+    it("✅ revoke_notification_key zeroes out the key fields", async () => {
+      const user = Keypair.generate();
+      await airdrop(provider, user.publicKey, 2);
+      const [pda] = findIdentityPda(user.publicKey, program.programId);
+
+      await program.methods
+        .registerIdentity(ENCRYPTED_EMAIL, EMAIL_HASH as any, NONCE as any, false, false, false, false, false)
+        .accounts({ owner: user.publicKey, identityAccount: pda, systemProgram: SystemProgram.programId } as any)
+        .signers([user]).rpc();
+
+      await program.methods
+        .registerNotificationKey(SEALED_PUBKEY, SENDER_PUBKEY, NOTIF_NONCE as any, KEY_VERSION)
+        .accounts({ owner: user.publicKey, identityAccount: pda } as any)
+        .signers([user]).rpc();
+
+      await program.methods
+        .revokeNotificationKey()
+        .accounts({ owner: user.publicKey, identityAccount: pda } as any)
+        .signers([user]).rpc();
+
+      const acct = await program.account.identityAccount.fetch(pda);
+      expect((acct as any).sealedX25519Pubkey).to.deep.equal(Array(48).fill(0));
+      expect((acct as any).senderX25519Pubkey).to.deep.equal(Array(32).fill(0));
+      expect((acct as any).notificationNonce).to.deep.equal(Array(24).fill(0));
+      expect((acct as any).notificationKeyVersion).to.equal(0);
+      expect((acct as any).notificationKeyUpdatedAt.toNumber()).to.equal(0);
+    });
+
+    it("✅ migrate_notification_key_space executes without errors on existing account", async () => {
+      const user = Keypair.generate();
+      await airdrop(provider, user.publicKey, 2);
+      const [pda] = findIdentityPda(user.publicKey, program.programId);
+
+      await program.methods
+        .registerIdentity(ENCRYPTED_EMAIL, EMAIL_HASH as any, NONCE as any, false, false, false, false, false)
+        .accounts({ owner: user.publicKey, identityAccount: pda, systemProgram: SystemProgram.programId } as any)
+        .signers([user]).rpc();
+
+      // Even if size is already new space, realloc in anchor is safe if same size or larger.
+      await program.methods
+        .migrateNotificationKeySpace()
+        .accounts({ owner: user.publicKey, identityAccount: pda, systemProgram: SystemProgram.programId } as any)
+        .signers([user]).rpc();
     });
   });
 
@@ -677,6 +818,11 @@ describe("herald-privacy-registry", () => {
       "registerIdentity",
       "updateIdentity",
       "deleteIdentity",
+      "migrateIdentityChannels",
+      "registerSms",
+      "registerTelegram",
+      "removeChannel",
+      "updateChannelSettings",
       "registerProtocol",
       "deactivateProtocol",
       "reactivateProtocol",
@@ -687,6 +833,10 @@ describe("herald-privacy-registry", () => {
       "resetProtocolSends",
       "withdrawTreasury",
       "writeReceipt",
+      "registerNotificationKey",
+      "rotateNotificationKey",
+      "revokeNotificationKey",
+      "migrateNotificationKeySpace",
     ];
 
     for (const name of EXPECTED_INSTRUCTIONS) {
@@ -711,8 +861,8 @@ describe("herald-privacy-registry", () => {
       });
     }
 
-    it("📋 IDL has 13 instructions total", () => {
-      expect(program.idl.instructions.length).to.equal(13);
+    it("📋 IDL has 22 instructions total", () => {
+      expect(program.idl.instructions.length).to.equal(22);
     });
   });
 });

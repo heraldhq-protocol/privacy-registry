@@ -1,9 +1,26 @@
 use anchor_lang::prelude::*;
 use light_sdk::{derive_light_cpi_signer, CpiSigner};
 
+// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║  TODO(#prod): PRE-MAINNET CREDENTIAL CHECKLIST                          ║
+// ║                                                                          ║
+// ║  Before deploying to mainnet, replace ALL placeholder values below:      ║
+// ║                                                                          ║
+// ║  1. HERALD_AUTHORITY  — Set to real KMS-backed authority pubkey          ║
+// ║                         Must match herald-sdk-ts/src/constants.ts        ║
+// ║  2. HERALD_TREASURY   — Set to real Squads multisig PDA                 ║
+// ║                         Currently == HERALD_AUTHORITY (defeats multisig) ║
+// ║                                                                          ║
+// ║  Also update in herald-sdk-ts/src/constants.ts:                         ║
+// ║  3. HERALD_ENCLAVE_WRAPPING_PUBKEY — Real X25519 enclave pubkey         ║
+// ║  4. HERALD_AUTHORITY               — Must match this file               ║
+// ║  5. HERALD_RECEIPT_MERKLE_TREE     — After Light Protocol tree init     ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
+
 /// Herald backend authority pubkey.
 /// This key is controlled by the Herald backend (stored in AWS KMS).
-/// ⚠️ Replace with the actual authority pubkey before mainnet deployment.
+/// TODO(#prod): Replace with the actual KMS-backed authority pubkey before mainnet.
+/// Must match HERALD_AUTHORITY in herald-sdk-ts/src/constants.ts.
 pub const HERALD_AUTHORITY: Pubkey =
     Pubkey::from_str_const("AyMjTKQcZh2WF2DG63kwR8yNvSLv8EfYzZgA1geZnXVL");
 
@@ -70,3 +87,13 @@ pub const MAX_RECEIPT_BATCH: usize = 10;
 pub const IDENTITY_SEED: &[u8] = b"identity";
 pub const PROTOCOL_SEED: &[u8] = b"protocol";
 pub const VAULT_SEED: &[u8] = b"vault";
+
+// ── Notification Key constants ───────────────────────────────────
+
+/// Maximum notification key rotations before the user must revoke and re-register.
+/// Prevents unbounded state growth and rotation spam.
+pub const MAX_NOTIFICATION_KEY_ROTATIONS: u32 = 1_000;
+
+/// Current supported notification key version.
+/// Bump this when the sealing format changes.
+pub const NOTIFICATION_KEY_VERSION: u8 = 1;
