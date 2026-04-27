@@ -19,10 +19,9 @@ use light_sdk::{derive_light_cpi_signer, CpiSigner};
 
 /// Herald backend authority pubkey.
 /// This key is controlled by the Herald backend (stored in AWS KMS).
-/// TODO(#prod): Replace with the actual KMS-backed authority pubkey before mainnet.
 /// Must match HERALD_AUTHORITY in herald-sdk-ts/src/constants.ts.
 pub const HERALD_AUTHORITY: Pubkey =
-    Pubkey::from_str_const("AyMjTKQcZh2WF2DG63kwR8yNvSLv8EfYzZgA1geZnXVL");
+    Pubkey::from_str_const("4K2GVdXoetgHoho5NJzHo5J5YazPNR1t6GS7jPpxUREA");
 
 /// USDC mint on Solana mainnet.
 pub const USDC_MINT: Pubkey =
@@ -35,10 +34,9 @@ pub const USDT_MINT: Pubkey =
 /// Herald treasury multisig (Squads 2-of-3).
 /// All subscription payments accumulate here.
 /// ⚠️ Replace with the actual Squads multisig pubkey before mainnet deployment.
-/// TODO(#prod): Replace with real Squads multisig PDA. Current value is a placeholder
-/// that matches HERALD_AUTHORITY for testing — this defeats the multisig separation.
+/// TODO(#prod): Replace with real Squads multisig PDA. Current value matches HERALD_AUTHORITY.
 pub const HERALD_TREASURY: Pubkey =
-    Pubkey::from_str_const("AyMjTKQcZh2WF2DG63kwR8yNvSLv8EfYzZgA1geZnXVL");
+    Pubkey::from_str_const("4K2GVdXoetgHoho5NJzHo5J5YazPNR1t6GS7jPpxUREA");
 
 /// Light Protocol CPI signer, derived at compile-time from the program ID.
 pub const LIGHT_CPI_SIGNER: CpiSigner =
