@@ -169,9 +169,7 @@ pub mod herald_privacy_registry {
     }
 
     /// Migrate existing account to new size for notification key fields.
-    pub fn migrate_notification_key_space(
-        ctx: Context<MigrateNotificationKeySpace>,
-    ) -> Result<()> {
+    pub fn migrate_notification_key_space(ctx: Context<MigrateNotificationKeySpace>) -> Result<()> {
         instructions::migrate_notification_key_space::handler(ctx)
     }
 
