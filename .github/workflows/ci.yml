@@ -51,6 +51,9 @@ jobs:
       - name: Install Solana CLI (agave)
         run: sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
 
+      - name: Add Solana to PATH
+        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
       - name: Install Anchor CLI from source
         run: |
           cargo install --git https://github.com/solana-foundation/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --locked
@@ -59,6 +62,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: target
+
+      - name: Verify solana CLI
+        run: solana --version
 
       - name: Build release
         run: cargo build-sbf --release --manifest-path programs/herald-privacy-registry/Cargo.toml
@@ -87,6 +93,12 @@ jobs:
 
       - name: Install Solana CLI (agave)
         run: sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+
+      - name: Add Solana to PATH
+        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Verify solana CLI
+        run: solana --version
 
       - name: Install Anchor CLI from source
         run: |
@@ -129,7 +141,7 @@ jobs:
         run: cargo install solana-verify --locked
 
       - name: Deterministic build
-        run: solana-verify build --library-name herald_privacy_registry
+        run: solana-verify build --library-name herald_privacy_registry --base-image solanafoundation/solana-verifiable-build:3.1.12
 
       - name: Upload deterministic artifact
         uses: actions/upload-artifact@v4
