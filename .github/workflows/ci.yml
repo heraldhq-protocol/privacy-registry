@@ -48,8 +48,8 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install Solana CLI
-        run: sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install.sh)"
+      - name: Install Solana CLI (agave)
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
 
       - name: Install Anchor CLI from source
         run: |
@@ -85,8 +85,8 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install Solana CLI
-        run: sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install.sh)"
+      - name: Install Solana CLI (agave)
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
 
       - name: Install Anchor CLI from source
         run: |
