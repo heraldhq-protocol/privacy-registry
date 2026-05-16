@@ -12,6 +12,18 @@ use state::AnchorCompressedProof;
 
 declare_id!("2pxjAf8tLCakKVDuN4vY51B5TeaEQk4koPuk9NZvWqdf");
 
+#[cfg(not(feature = "no-entrypoint"))]
+solana_security_txt::security_txt! {
+    name: "Herald Privacy Registry",
+    project_url: "https://github.com/heraldhq-protocol/privacy-registry",
+    contacts: "email:hello@useherald.xyz",
+    policy: "https://github.com/heraldhq-protocol/privacy-registry/blob/main/docs/SECURITY.md",
+    preferred_languages: "en",
+    source_code: "https://github.com/heraldhq-protocol/privacy-registry",
+    auditors: "Antigravity (internal review)",
+    acknowledgements: "Neodyme for security.txt standard"
+}
+
 #[program]
 pub mod herald_privacy_registry {
     use super::*;

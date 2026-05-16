@@ -26,6 +26,7 @@ light-sdk = { workspace = true }
 spl-token = { workspace = true }
 blake3 = { workspace = true }
 sha2 = { workspace = true }
+solana-security-txt = "1.1.3"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
