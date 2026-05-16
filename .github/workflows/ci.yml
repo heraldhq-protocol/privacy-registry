@@ -143,6 +143,11 @@ jobs:
       - name: Build IDL
         run: anchor build
 
+      - name: Generate test keypair
+        run: |
+          mkdir -p "$HOME/.config/solana"
+          solana-keygen new -s --no-passphrase --force -o "$HOME/.config/solana/id.json"
+
       - name: Run tests
         run: anchor test
         timeout-minutes: 15
