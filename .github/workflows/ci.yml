@@ -364,7 +364,7 @@ jobs:
           npx @solana-program/program-metadata@latest write security \
             ${{ inputs.program_id }} \
             ./security.json \
-            -u ${{ env.DEVNET_RPC }} \
+            --rpc ${{ env.DEVNET_RPC }} \
             --keypair "$HOME/.config/solana/id.json"
 
       - name: Summary
