@@ -333,6 +333,7 @@ jobs:
           solana-verify verify-from-repo \
             -u ${{ env.DEVNET_RPC }} \
             --program-id ${{ inputs.program_id }} \
+            --base-image ${{ env.BASE_IMAGE }} \
             "$REPO_URL"
 
       - name: Submit remote verification job
