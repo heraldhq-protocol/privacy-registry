@@ -441,6 +441,69 @@ Post-deployment:
 
 ---
 
+## ✅ Verified Builds
+
+This project uses [solana-verifiable-build](https://github.com/solana-foundation/solana-verifiable-build) to ensure the deployed on-chain program matches the public source code exactly.
+
+### How It Works
+
+Every CI run builds the program deterministically inside a pinned Docker image (`solanafoundation/solana-verifiable-build:3.1.12`), producing a byte-for-byte reproducible `.so`. After deployment, the build hash is uploaded to a PDA on-chain so anyone can independently verify the program matches the source.
+
+### Deploy & Verify Workflow
+
+Use the `Deploy & Verify` GitHub Actions workflow (`workflow_dispatch`) to deploy and verify in one step:
+
+1. **Set up a deployer wallet** (one-time):
+   ```bash
+   solana-keygen new -o deployer-keypair.json
+   ```
+
+2. **Fund it on devnet**:
+   ```bash
+   solana airdrop 5 $(solana-keygen pubkey deployer-keypair.json) --url devnet
+   ```
+
+3. **Add the keypair to GitHub Secrets**:
+   - Go to: Settings → Secrets and variables → Actions
+   - Add `DEPLOYER_KEYPAIR` with the base64-encoded keypair:
+     ```bash
+     Get-Content deployer-keypair.json -Raw | base64 -w 0
+     ```
+
+4. **Run the workflow**:
+   - Navigate to Actions → Deploy & Verify → Run workflow
+   - Enter the **program ID**, choose **devnet**, optionally check **Submit remote verification**
+
+### Manual Verification
+
+If you prefer to verify manually after deploying:
+
+```bash
+# Deterministic build
+solana-verify build --library-name herald_privacy_registry --base-image solanafoundation/solana-verifiable-build:3.1.12
+
+# Upload build data on-chain
+solana-verify verify-from-repo -u https://api.devnet.solana.com \
+  --program-id <PROGRAM_ID> \
+  https://github.com/herald-inc/herald-privacy-registry
+
+# Trigger OtterSec remote verification
+solana-verify remote submit-job --program-id <PROGRAM_ID> --uploader <YOUR_PUBKEY>
+```
+
+Prerequisites:
+- Docker
+- `cargo install solana-verify --locked`
+- A funded wallet with SOL for the PDA rent
+
+### Verify a Deployed Program
+
+To check if a deployed program is verified:
+- Visit the program on [SolanaFM Explorer](https://solana.fm) and look for the "Verified" badge
+- Or run: `solana-verify verify-from-repo --help` for manual verification options
+
+---
+
 ## 📜 License
 
 ISC

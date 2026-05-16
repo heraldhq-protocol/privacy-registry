@@ -59,6 +59,12 @@ jobs:
       - name: Build SBF
         run: cargo build-sbf --release --manifest-path programs/herald-privacy-registry/Cargo.toml
 
+      - name: Install solana-verify
+        run: cargo install solana-verify --locked
+
+      - name: Deterministic build (solana-verify)
+        run: solana-verify build --library-name herald_privacy_registry --base-image solanafoundation/solana-verifiable-build:3.1.12
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
