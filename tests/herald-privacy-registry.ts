@@ -847,7 +847,6 @@ describe("herald-privacy-registry", () => {
     const EXPECTED_ACCOUNTS = [
       "identityAccount",
       "protocolRegistryAccount",
-      "subscriptionVaultAccount",
     ];
 
     for (const name of EXPECTED_ACCOUNTS) {
@@ -859,8 +858,8 @@ describe("herald-privacy-registry", () => {
       });
     }
 
-    it("📋 IDL has 22 instructions total", () => {
-      expect(program.idl.instructions.length).to.equal(22);
+    it("📋 IDL has 20 instructions total", () => {
+      expect(program.idl.instructions.length).to.equal(20);
     });
   });
 });
