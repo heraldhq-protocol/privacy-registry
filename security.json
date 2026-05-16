@@ -1,0 +1,11 @@
+{
+  "name": "Herald Privacy Registry",
+  "description": "Privacy-first notification layer for Solana DeFi — encrypted identities, protocol registry with subscriptions, and ZK-compressed delivery receipts",
+  "project_url": "https://github.com/heraldhq-protocol/privacy-registry",
+  "contacts": ["email:hello@useherald.xyz"],
+  "policy": "https://github.com/heraldhq-protocol/privacy-registry/blob/main/docs/SECURITY.md",
+  "preferred_languages": ["en"],
+  "source_code": "https://github.com/heraldhq-protocol/privacy-registry",
+  "auditors": ["Antigravity (internal review)"],
+  "version": "1.0.0"
+}

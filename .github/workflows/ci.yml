@@ -355,6 +355,18 @@ jobs:
             --program-id ${{ inputs.program_id }} \
             --uploader "${{ env.DEPLOYER_PUBKEY }}"
 
+      - name: Upload security.txt metadata
+        run: |
+          if [ ! -f "$HOME/.config/solana/id.json" ]; then
+            echo "⏭️ No deployer keypair — skipping metadata upload"
+            exit 0
+          fi
+          npx @solana-program/program-metadata@latest write security \
+            ${{ inputs.program_id }} \
+            ./security.json \
+            -u ${{ env.DEVNET_RPC }} \
+            --keypair "$HOME/.config/solana/id.json"
+
       - name: Summary
         run: |
           echo "## Deploy & Verify Complete" >> "$GITHUB_STEP_SUMMARY"
@@ -371,6 +383,7 @@ jobs:
               echo "| **Deploy** | ⏭️ Skipped |" >> "$GITHUB_STEP_SUMMARY"
             fi
             echo "| **Verify** | ✅ Build data uploaded on-chain |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| **Security.txt** | ✅ Uploaded to PDA |" >> "$GITHUB_STEP_SUMMARY"
             if [ "${{ inputs.submit_remote }}" == "true" ]; then
               echo "| **Remote job** | ✅ Submitted |" >> "$GITHUB_STEP_SUMMARY"
             fi
