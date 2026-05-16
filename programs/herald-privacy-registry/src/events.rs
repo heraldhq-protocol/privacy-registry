@@ -92,7 +92,7 @@ pub struct ProtocolSuspended {
 //  SUBSCRIPTION / BILLING EVENTS
 // ═══════════════════════════════════════════════════════════
 
-/// Emitted by BOTH `renew_subscription` (Helio path) AND `pay_subscription` (USDC path).
+/// Emitted by `renew_subscription` (Helio path).
 #[event]
 pub struct SubscriptionRenewed {
     pub protocol: Pubkey,
@@ -112,18 +112,6 @@ pub struct PeriodReset {
     pub protocol: Pubkey,
     pub sends_last_period: u64,
     pub tier: u8,
-    pub timestamp: i64,
-}
-
-/// Emitted when a protocol pays on-chain (Phase 2 only).
-#[event]
-pub struct PaymentReceived {
-    pub protocol: Pubkey,
-    pub amount_usdc: u64,
-    pub token_mint: Pubkey,
-    pub tier: u8,
-    pub months: u8,
-    pub new_expiry: i64,
     pub timestamp: i64,
 }
 

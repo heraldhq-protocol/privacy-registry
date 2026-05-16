@@ -76,7 +76,6 @@ programs/herald-privacy-registry/src/
 │   ├── identity.rs            # IdentityAccount PDA (with channel support)
 │   ├── protocol.rs            # ProtocolRegistryAccount PDA (with billing fields)
 │   ├── proof.rs               # DeliveryReceipt (Light compressed)
-│   └── vault.rs               # SubscriptionVaultAccount PDA
 └── instructions/
     ├── register_identity.rs
     ├── update_identity.rs
@@ -96,8 +95,6 @@ programs/herald-privacy-registry/src/
     ├── suspend_protocol.rs     # Hard-suspend (ToS/fraud)
     ├── update_tier.rs          # Modify protocol tier
     ├── renew_subscription.rs   # Monthly billing (Helio fallback)
-    ├── pay_subscription.rs     # Phase 2: On-chain USDC/USDT payment
-    ├── withdraw_treasury.rs    # Move vault funds to treasury
     ├── reset_protocol_sends.rs # Period-end counter reset
     └── write_receipt.rs        # ZK-compressed delivery proof
 ```
@@ -150,21 +147,8 @@ programs/herald-privacy-registry/src/
 | `sends_this_period`       | `u64`      | Sends used in current period           |
 | `is_active`               | `bool`     | Soft-active flag                       |
 | `is_suspended`            | `bool`     | Hard-suspension flag                   |
-| `lifetime_usdc_paid`      | `u64`      | Accumulated USDC paid (6-decimals)     |
-| `last_payment_mint`       | `Pubkey`   | Last used payment token                |
 | `registered_at`           | `i64`      | Registration timestamp                 |
 | `bump`                    | `u8`       | PDA bump                               |
-
-### SubscriptionVaultAccount (PDA: `["vault"]`, 65 bytes)
-
-| Field                  | Type     | Description               |
-| ---------------------- | -------- | ------------------------- |
-| `authority`            | `Pubkey` | Herald treasury multisig  |
-| `total_usdc_collected` | `u64`    | Total USDC volume         |
-| `total_usdt_collected` | `u64`    | Total USDT volume         |
-| `last_withdrawal_at`   | `i64`    | Last withdrawal timestamp |
-| `withdrawal_count`     | `u32`    | Number of withdrawals     |
-| `bump`                 | `u8`     | PDA bump                  |
 
 ### DeliveryReceipt (Light Protocol Compressed Leaf)
 
@@ -222,9 +206,7 @@ programs/herald-privacy-registry/src/
 
 | Instruction            | Description                                                       |
 | ---------------------- | ----------------------------------------------------------------- |
-| `pay_subscription`     | Protocol pays on-chain with USDC/USDT to renew/activate (Phase 2) |
 | `renew_subscription`   | Reactivate/extend by 1 period (off-chain Helio payment fallback)  |
-| `withdraw_treasury`    | Withdraw accumulated vault USDC/USDT to Herald treasury           |
 | `reset_protocol_sends` | Zero the period sends counter; emits audit event                  |
 
 ### Receipts (Herald Authority)
@@ -346,8 +328,7 @@ stateDiagram-v2
 | `ProtocolReactivated`    | protocol, timestamp                           | `reactivate_protocol`                    |
 | `ProtocolSuspended`      | protocol, timestamp                           | `suspend_protocol`                       |
 | `ProtocolTierUpdated`    | protocol, old_tier, new_tier                  | `update_protocol_tier`                   |
-| `PaymentReceived`        | protocol, amount_usdc, token_mint, tier       | `pay_subscription`                       |
-| `SubscriptionRenewed`    | protocol, tier, new_expiry, usdc_paid         | `pay_subscription`, `renew_subscription` |
+| `SubscriptionRenewed`    | protocol, tier, new_expiry, usdc_paid         | `renew_subscription`                     |
 | `PeriodReset`            | protocol, sends_last_period, tier             | `reset_protocol_sends`                   |
 | `NotificationDelivered`  | protocol, recipient_hash, id, category, sends | `write_receipt`                          |
 | `ProtocolSendRecorded`   | protocol, sends_this_period, sends_limit      | `write_receipt`                          |
@@ -398,9 +379,7 @@ See [docs/SECURITY.md](./docs/SECURITY.md) for the full audit report.
 | `reactivate_protocol`  | `HERALD_AUTHORITY` | + must be inactive & not suspended                             |
 | `suspend_protocol`     | `HERALD_AUTHORITY` |                                                                |
 | `update_protocol_tier` | `HERALD_AUTHORITY` |                                                                |
-| `pay_subscription`     | Protocol admin     | Validates mint, payer is `protocol.owner`                      |
 | `renew_subscription`   | `HERALD_AUTHORITY` | + must not be suspended                                        |
-| `withdraw_treasury`    | `HERALD_AUTHORITY` | Vault PDA acts as signer for transfer                          |
 | `reset_protocol_sends` | `HERALD_AUTHORITY` |                                                                |
 | `write_receipt`        | `HERALD_AUTHORITY` | + active + not suspended + subscription current + within limit |
 
@@ -455,8 +434,7 @@ solana program set-upgrade-authority <PROGRAM_ID> --new-upgrade-authority <MULTI
 Post-deployment:
 
 1. Replace `HERALD_AUTHORITY` placeholder with actual KMS pubkey and redeploy
-2. Replace `HERALD_TREASURY` with actual Squads multisig PDA
-3. Update `HERALD_ENCLAVE_WRAPPING_PUBKEY` in `herald-sdk-ts/src/constants.ts` after enclave keygen
+2. Update `HERALD_ENCLAVE_WRAPPING_PUBKEY` in `herald-sdk-ts/src/constants.ts` after enclave keygen
 4. Initialise Light Protocol Merkle trees
 5. Register protocols via `register_protocol`
 6. Activate via `renew_subscription` after first payment

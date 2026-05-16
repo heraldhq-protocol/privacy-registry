@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::constants::{SUBSCRIPTION_PERIOD_SECS, TIER_PRICES_USDC, TIER_SEND_LIMITS};
+use crate::constants::{SUBSCRIPTION_PERIOD_SECS, TIER_SEND_LIMITS};
 use crate::errors::HeraldError;
 
 /// On-chain registration and billing record for a DeFi protocol.
@@ -42,13 +42,6 @@ pub struct ProtocolRegistryAccount {
     /// Whether the protocol has been explicitly suspended by Herald (not just lapsed).
     pub is_suspended: bool, // 1
 
-    // ── Billing Tracking ────────────────────────────────────
-    /// Accumulated USDC paid lifetime (6-decimal base units, for analytics).
-    pub lifetime_usdc_paid: u64, // 8
-
-    /// Last payment token mint (USDC or USDT pubkey). Default if never paid.
-    pub last_payment_mint: Pubkey, // 32
-
     // ── Timestamps ──────────────────────────────────────────
     /// Unix timestamp of initial registration.
     pub registered_at: i64, // 8
@@ -68,12 +61,6 @@ impl ProtocolRegistryAccount {
     #[inline]
     pub fn sends_limit(&self) -> u64 {
         TIER_SEND_LIMITS[self.tier as usize]
-    }
-
-    /// USDC price for one billing period at this tier (6-decimal base units).
-    #[inline]
-    pub fn period_price_usdc(&self) -> u64 {
-        TIER_PRICES_USDC[self.tier as usize]
     }
 
     /// Returns `true` if this protocol can send a notification right now.

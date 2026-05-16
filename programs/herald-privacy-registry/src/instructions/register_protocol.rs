@@ -51,8 +51,6 @@ pub fn handler(ctx: Context<RegisterProtocol>, name_hash: [u8; 32], tier: u8) ->
     protocol.subscription_expires_at = 0; // not yet subscribed
     protocol.last_renewed_at = 0;
     protocol.periods_paid = 0;
-    protocol.lifetime_usdc_paid = 0;
-    protocol.last_payment_mint = Pubkey::default();
     protocol.registered_at = now;
     protocol.bump = ctx.bumps.protocol_account;
 
