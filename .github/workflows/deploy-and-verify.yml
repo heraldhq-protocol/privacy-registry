@@ -60,28 +60,46 @@ jobs:
         run: cargo install solana-verify --locked
 
       - name: Setup deployer keypair
-        if: ${{ secrets.DEPLOYER_KEYPAIR != '' }}
+        env:
+          DEPLOYER_KEYPAIR_B64: ${{ secrets.DEPLOYER_KEYPAIR }}
         run: |
+          if [ -z "$DEPLOYER_KEYPAIR_B64" ]; then
+            echo "No DEPLOYER_KEYPAIR secret set — skipping keypair setup"
+            echo "HAS_KEYPAIR=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
           mkdir -p "$HOME/.config/solana"
-          echo '${{ secrets.DEPLOYER_KEYPAIR }}' | base64 -d > "$HOME/.config/solana/id.json"
+          echo "$DEPLOYER_KEYPAIR_B64" | base64 -d > "$HOME/.config/solana/id.json"
           chmod 600 "$HOME/.config/solana/id.json"
           solana config set --keypair "$HOME/.config/solana/id.json"
-          echo "DEPLOYER_PUBKEY=$(solana-keygen pubkey)" >> "$GITHUB_ENV"
+          DEPLOYER_PUBKEY=$(solana-keygen pubkey)
+          echo "DEPLOYER_PUBKEY=$DEPLOYER_PUBKEY" >> "$GITHUB_ENV"
+          echo "HAS_KEYPAIR=true" >> "$GITHUB_ENV"
 
       - name: Deterministic build
         run: solana-verify build --library-name ${{ env.LIBRARY_NAME }} --base-image ${{ env.BASE_IMAGE }}
 
       - name: Deploy to ${{ inputs.cluster }}
-        if: ${{ !inputs.skip_deploy && secrets.DEPLOYER_KEYPAIR != '' }}
         run: |
+          if [ "${{ inputs.skip_deploy }}" == "true" ]; then
+            echo "⏭️ Deploy skipped (skip_deploy=true)"
+            exit 0
+          fi
+          if [ ! -f "$HOME/.config/solana/id.json" ]; then
+            echo "⏭️ No deployer keypair available — skipping deploy"
+            exit 0
+          fi
           solana program deploy target/deploy/${{ env.LIBRARY_NAME }}.so \
             -u ${{ env.DEVNET_RPC }} \
             --program-id ${{ inputs.program_id }} \
             --with-compute-unit-price 100000
 
       - name: Verify against repository
-        if: ${{ secrets.DEPLOYER_KEYPAIR != '' }}
         run: |
+          if [ ! -f "$HOME/.config/solana/id.json" ]; then
+            echo "⏭️ No deployer keypair available — skipping verify-from-repo"
+            exit 0
+          fi
           REPO_URL="https://github.com/${{ github.repository }}"
           solana-verify verify-from-repo \
             -u ${{ env.DEVNET_RPC }} \
@@ -89,34 +107,40 @@ jobs:
             "$REPO_URL"
 
       - name: Submit remote verification job
-        if: ${{ inputs.submit_remote && secrets.DEPLOYER_KEYPAIR != '' }}
         run: |
+          if [ "${{ inputs.submit_remote }}" != "true" ]; then
+            echo "⏭️ Remote job not requested"
+            exit 0
+          fi
+          if [ ! -f "$HOME/.config/solana/id.json" ]; then
+            echo "⏭️ No deployer keypair available — skipping remote job"
+            exit 0
+          fi
           solana-verify remote submit-job \
             --program-id ${{ inputs.program_id }} \
             --uploader "${{ env.DEPLOYER_PUBKEY }}"
 
       - name: Summary
         run: |
-          echo "## ✅ Deploy & Verify Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Item | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Program ID** | \`${{ inputs.program_id }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Cluster** | ${{ inputs.cluster }} |" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ secrets.DEPLOYER_KEYPAIR }}" != "" ]; then
-            echo "| **Deployer** | \`${{ env.DEPLOYER_PUBKEY }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "## Deploy & Verify Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Item | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Program ID** | \`${{ inputs.program_id }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Cluster** | ${{ inputs.cluster }} |" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ env.HAS_KEYPAIR }}" == "true" ]; then
+            echo "| **Deployer** | \`${{ env.DEPLOYER_PUBKEY }}\` |" >> "$GITHUB_STEP_SUMMARY"
             if [ "${{ inputs.skip_deploy }}" == "false" ]; then
-              echo "| **Deploy** | ✅ Deployed |" >> $GITHUB_STEP_SUMMARY
+              echo "| **Deploy** | ✅ Deployed |" >> "$GITHUB_STEP_SUMMARY"
             else
-              echo "| **Deploy** | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+              echo "| **Deploy** | ⏭️ Skipped |" >> "$GITHUB_STEP_SUMMARY"
             fi
-            echo "| **Verify** | ✅ Build data uploaded on-chain |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Verify** | ✅ Build data uploaded on-chain |" >> "$GITHUB_STEP_SUMMARY"
             if [ "${{ inputs.submit_remote }}" == "true" ]; then
-              echo "| **Remote job** | ✅ Submitted to OtterSec |" >> $GITHUB_STEP_SUMMARY
+              echo "| **Remote job** | ✅ Submitted to OtterSec |" >> "$GITHUB_STEP_SUMMARY"
             fi
           else
-            echo "| **Deploy** | ⏭️ No deployer keypair set |" >> $GITHUB_STEP_SUMMARY
-            echo "| **Verify** | ⏭️ No deployer keypair set |" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Next steps:** Add \`DEPLOYER_KEYPAIR\` as a GitHub Actions secret (base64-encoded JSON keypair) to enable deploy & verify." >> $GITHUB_STEP_SUMMARY
+            echo "| **Deployer** | ⏭️ Not configured |" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Next steps:** Add \`DEPLOYER_KEYPAIR\` as a GitHub Actions secret (base64-encoded JSON keypair) to enable deploy & verify." >> "$GITHUB_STEP_SUMMARY"
           fi
