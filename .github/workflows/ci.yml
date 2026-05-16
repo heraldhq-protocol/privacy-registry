@@ -330,7 +330,7 @@ jobs:
             exit 0
           fi
           REPO_URL="https://github.com/${{ github.repository }}"
-          solana-verify verify-from-repo \
+          yes | solana-verify verify-from-repo \
             -u ${{ env.DEVNET_RPC }} \
             --program-id ${{ inputs.program_id }} \
             --base-image ${{ env.BASE_IMAGE }} \
