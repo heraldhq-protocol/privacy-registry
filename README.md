@@ -451,7 +451,7 @@ Every CI run builds the program deterministically inside a pinned Docker image (
 
 ### Deploy & Verify Workflow
 
-Use the `Deploy & Verify` GitHub Actions workflow (`workflow_dispatch`) to deploy and verify in one step:
+Use the `CI` workflow's **Deploy & Verify** (`workflow_dispatch`) to deploy and verify in one step:
 
 1. **Set up a deployer wallet** (one-time):
    ```bash
@@ -464,14 +464,14 @@ Use the `Deploy & Verify` GitHub Actions workflow (`workflow_dispatch`) to deplo
    ```
 
 3. **Add the keypair to GitHub Secrets**:
-   - Go to: Settings → Secrets and variables → Actions
-   - Add `DEPLOYER_KEYPAIR` with the base64-encoded keypair:
+   - Go to: **Settings → Secrets and variables → Actions**
+   - Add `DEPLOYER_KEYPAIR` with the **raw JSON content** of the keypair file:
      ```bash
-     Get-Content deployer-keypair.json -Raw | base64 -w 0
+     cat deployer-keypair.json   # paste the entire output as the secret value
      ```
 
 4. **Run the workflow**:
-   - Navigate to Actions → Deploy & Verify → Run workflow
+   - Navigate to **Actions → CI → Run workflow**
    - Enter the **program ID**, choose **devnet**, optionally check **Submit remote verification**
 
 ### Manual Verification
@@ -485,7 +485,7 @@ solana-verify build --library-name herald_privacy_registry --base-image solanafo
 # Upload build data on-chain
 solana-verify verify-from-repo -u https://api.devnet.solana.com \
   --program-id <PROGRAM_ID> \
-  https://github.com/herald-inc/herald-privacy-registry
+  https://github.com/heraldhq-protocol/privacy-registry
 
 # Trigger OtterSec remote verification
 solana-verify remote submit-job --program-id <PROGRAM_ID> --uploader <YOUR_PUBKEY>
